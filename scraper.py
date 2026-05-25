@@ -18,6 +18,8 @@ import requests
 from bs4 import BeautifulSoup
 from geopy.distance import geodesic
 
+from report import write_html
+
 # 370 Jay St, Brooklyn, NY 11201 — NYU Tandon
 CAMPUS_COORDS = (40.6929, -73.9870)
 SEARCH_URL = "https://newyork.craigslist.org/search/brk/apa"
@@ -251,7 +253,7 @@ def main():
     ap = argparse.ArgumentParser(description="Scrape & score Craigslist Brooklyn apartments near NYU Tandon.")
     ap.add_argument("--max-listings", type=int, default=TARGET_LISTINGS,
                     help=f"Max listings to fetch from search (default {TARGET_LISTINGS}).")
-    ap.add_argument("--out", default=None, help="Output CSV path (default apartments_YYYY-MM-DD.csv).")
+    ap.add_argument("--out", default=None, help="Output path stem (default apartments_YYYY-MM-DD); .csv and .html are written.")
     ap.add_argument("--sanity-check", action="store_true",
                     help="Fetch the first search page and exit — verifies network/IP isn't blocked.")
     args = ap.parse_args()
@@ -288,9 +290,14 @@ def main():
         results.append(listing)
 
     results.sort(key=lambda l: l.score, reverse=True)
-    out_path = args.out or f"apartments_{datetime.now().date().isoformat()}.csv"
-    write_csv(out_path, results)
-    print(f"\nWrote {len(results)} listings to {out_path}")
+    stem = args.out or f"apartments_{datetime.now().date().isoformat()}"
+    if stem.endswith(".csv"):
+        stem = stem[:-4]
+    csv_path, html_path = f"{stem}.csv", f"{stem}.html"
+    write_csv(csv_path, results)
+    write_html(html_path, results)
+    print(f"\nWrote {len(results)} listings to {csv_path} and {html_path}")
+    print(f"Tip: open {html_path} in a browser, or share it with anyone — it's self-contained.")
     print_top(results, 10)
 
 
