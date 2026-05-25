@@ -585,6 +585,10 @@ body {
 .map-panel { display: none; }          /* hidden until >=1100px viewport */
 
 .map-panel-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
   font-family: var(--mono);
   font-size: var(--type-micro);
   letter-spacing: 0.08em;
@@ -593,6 +597,29 @@ body {
   padding: 0.55rem 0.25rem 0.65rem;
   border-top: 2px solid var(--ink);
 }
+.map-panel-caption > .caption-text { flex: 1; min-width: 0; }
+
+.tile-select {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background-color: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 0.32rem 1.6rem 0.32rem 0.55rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg,  transparent 50%, var(--ink-soft) 50%),
+    linear-gradient(135deg, var(--ink-soft) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 55%, calc(100% - 8px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.tile-select:hover { border-color: var(--ink); }
+.tile-select:focus-visible { outline: 2px solid var(--crimson); outline-offset: 2px; }
 
 /* Mobile-only inline map (shown when right rail is hidden) */
 .map-inline { display: block; margin: 2rem 0; }
@@ -607,7 +634,7 @@ body {
   .paper { max-width: none; }       /* full viewport width */
   .list-with-map {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(400px, 38vw, 560px);
+    grid-template-columns: minmax(0, 1fr) clamp(440px, 44vw, 820px);
     gap: 2.5rem;
     align-items: start;
   }
@@ -616,8 +643,8 @@ body {
     position: sticky;
     top: 1.25rem;
     height: calc(100vh - 2.5rem);
-    min-height: 520px;
-    max-height: 840px;
+    min-height: 620px;
+    max-height: 960px;
   }
   #map-side {
     width: 100%;
@@ -811,11 +838,11 @@ body {
   <section class="stats">
     <div class="stat">
       <span class="stat-label">Listings</span>
-      <span class="stat-value">1</span>
+      <span class="stat-value">2</span>
     </div>
     <div class="stat">
       <span class="stat-label">Cheapest</span>
-      <span class="stat-value">$1,159</span>
+      <span class="stat-value">$1,100</span>
     </div>
     <div class="stat">
       <span class="stat-label">Closest</span>
@@ -828,7 +855,7 @@ body {
   </section>
 
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">1</span></button>
+    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">2</span></button>
     <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
   </nav>
 
@@ -868,12 +895,18 @@ body {
 
       <!-- view-map removed: map is now persistent on the right (desktop) or inline below the list (mobile) -->
       <aside class="map-inline" id="map-inline">
-        <div class="map-panel-caption">listings near 370 jay st</div>
+        <div class="map-panel-caption">
+          <span class="caption-text">listings near 370 jay st</span>
+          <select class="tile-select" data-tile-select aria-label="Map style"></select>
+        </div>
         <div id="map-mobile"></div>
       </aside>
     </main>
     <aside class="map-panel" id="map-panel">
-      <div class="map-panel-caption">listings near 370 Jay St — hover an entry to highlight its pin</div>
+      <div class="map-panel-caption">
+        <span class="caption-text">listings near 370 Jay St — hover an entry to highlight its pin</span>
+        <select class="tile-select" data-tile-select aria-label="Map style"></select>
+      </div>
       <div id="map-side"></div>
     </aside>
   </div>
@@ -886,11 +919,11 @@ body {
   </footer>
 </div>
 
-<script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-junior-1bed-loft-style-with/7936701356.html","title":"Junior 1Bed Loft Style with Great Closet Space & Natural Light","price":1159,"bedrooms":1,"neighborhood":"Prospect Heights","lat":40.679,"lng":-73.9644,"posted":"2026-05-25","postedRel":"today","description":"Junior 1Bed Loft Style with Great Closet Space & Natural Light 405 Sterling Pl #2A, Brooklyn, NY Junior 1 Bed | 1 Bath | Prospect Heights Charming top-floor junior 1-bedroom apartment located in the heart of Prospect Heights. This quiet back-facing unit offers a peaceful atmosphere, excellent natural light, and a loft-style layout with re\u2026","distance":1.5261487076251856,"walkMin":31,"score":35,"tags":[],"source":""}]</script>
+<script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-junior-1bed-loft-style-with/7936701356.html","title":"Junior 1Bed Loft Style with Great Closet Space & Natural Light","price":1159,"bedrooms":1,"neighborhood":"Prospect Heights","lat":40.679,"lng":-73.9644,"posted":"2026-05-25","postedRel":"today","description":"Junior 1Bed Loft Style with Great Closet Space & Natural Light 405 Sterling Pl #2A, Brooklyn, NY Junior 1 Bed | 1 Bath | Prospect Heights Charming top-floor junior 1-bedroom apartment located in the heart of Prospect Heights. This quiet back-facing unit offers a peaceful atmosphere, excellent natural light, and a loft-style layout with re\u2026","distance":1.5261487076251856,"walkMin":31,"score":35,"tags":[],"source":""},{"n":2,"url":"https://newjersey.craigslist.org/apa/d/jersey-city-huge-hi-ceiling-live-work/7934545621.html","title":"HUGE HI-CEILING LIVE/WORK LOFT - GROVE ST. PATH STATION - DOWNTOWN","price":1100,"bedrooms":0,"neighborhood":"JERSEY CITY","lat":40.719851,"lng":-74.038498,"posted":"2026-05-15","postedRel":"10 days ago","description":"HI CEILING WORK/LIVE LOFT - OPEN SPACE - DOWNTOWN EASY COMMUTE. 1/2 minute walk to Grove St. PATH station. 1 minute walk to Newark Avenue shopping district. Walk to restaurants, bars & bistros. Walk to Waterfront, supermarket, parks. Hardwood floors. Very quite and peaceful apartment. No upper floor apartment. 1 apartment per floor in 3 s\u2026","distance":3.281923091257976,"walkMin":66,"score":18,"tags":[],"source":""}]</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const MEDIANS = {"1": 1159};
+const MEDIANS = {"1": 1159, "0": 1100};
 const CAMPUS = [40.6929, -73.9870];
 
 (function () {
@@ -1054,16 +1087,76 @@ const CAMPUS = [40.6929, -73.9870];
   let mountedAt = null;            // 'map-side' | 'map'
   const markerByUrl = new Map();   // url → Leaflet marker
 
+  // Tile providers — all free, no API key. Picked for utility navigating NYC:
+  // Streets for orientation, Minimal so pins pop, Satellite for what the block
+  // actually looks like, Transit because the train is how you'll actually get
+  // to campus. Selection persists in localStorage so it survives refreshes.
+  const TILE_PROVIDERS = {
+    streets: {
+      label: 'Streets',
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19,
+    },
+    minimal: {
+      label: 'Minimal',
+      url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      attribution: '&copy; OpenStreetMap, &copy; CARTO',
+      maxZoom: 20,
+      subdomains: 'abcd',
+    },
+    satellite: {
+      label: 'Satellite',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 19,
+    },
+    transit: {
+      label: 'Transit',
+      url: 'https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png',
+      attribution: '&copy; OpenStreetMap, &copy; memomaps.de',
+      maxZoom: 18,
+    },
+  };
+  const TILE_DEFAULT = 'streets';
+  const TILE_KEY = 'khoj.tile';
+  let currentTileLayer = null;
+
+  function getTileChoice() {
+    try { return localStorage.getItem(TILE_KEY) || TILE_DEFAULT; } catch { return TILE_DEFAULT; }
+  }
+  function applyTile(key) {
+    if (!mapInstance) return;
+    const cfg = TILE_PROVIDERS[key] || TILE_PROVIDERS[TILE_DEFAULT];
+    if (currentTileLayer) currentTileLayer.remove();
+    const opts = { attribution: cfg.attribution, maxZoom: cfg.maxZoom };
+    if (cfg.subdomains) opts.subdomains = cfg.subdomains;
+    currentTileLayer = L.tileLayer(cfg.url, opts).addTo(mapInstance);
+  }
+
+  function setupTileSelects() {
+    const choice = getTileChoice();
+    document.querySelectorAll('[data-tile-select]').forEach(sel => {
+      sel.innerHTML = Object.entries(TILE_PROVIDERS).map(([k, p]) =>
+        `<option value="${k}"${k === choice ? ' selected' : ''}>${p.label}</option>`).join('');
+      sel.addEventListener('change', () => {
+        try { localStorage.setItem(TILE_KEY, sel.value); } catch {}
+        applyTile(sel.value);
+        document.querySelectorAll('[data-tile-select]').forEach(s => {
+          if (s !== sel) s.value = sel.value;
+        });
+      });
+    });
+  }
+
   function mountMap(targetId) {
     if (mapInstance && mountedAt === targetId) { refreshMapMarkers(); return; }
-    if (mapInstance) { mapInstance.remove(); markerByUrl.clear(); }
+    if (mapInstance) { mapInstance.remove(); markerByUrl.clear(); currentTileLayer = null; }
     const el = document.getElementById(targetId);
     if (!el) return;
     mountedAt = targetId;
     mapInstance = L.map(targetId, { scrollWheelZoom: false }).setView(CAMPUS, 13);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap', maxZoom: 19,
-    }).addTo(mapInstance);
+    applyTile(getTileChoice());
 
     drawDistanceRings();
     loadStaticLayers();  // commute zone + subway lines + stations (async, non-blocking)
@@ -1374,6 +1467,7 @@ const CAMPUS = [40.6929, -73.9870];
   } else if (document.getElementById('map-mobile')) {
     mountMap('map-mobile');
   }
+  setupTileSelects();
 })();
 
 </script>
