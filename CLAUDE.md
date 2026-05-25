@@ -4,14 +4,16 @@ This file is loaded automatically into every Claude Code session opened in this 
 
 ## What this is
 
-Khoj is a daily-updated Craigslist apartment report for an incoming NYU Tandon student looking for a place near 370 Jay St, Brooklyn. The whole thing is a Python scraper + an HTML report + a GitHub Actions cron + GitHub Pages. **That's the entire architecture, and it's intentional.** It went through several rounds of "what if we also..." before settling here — see *History* below.
+Khoj is a daily-updated Craigslist apartment report for an incoming NYU Tandon **student** looking for a place near 370 Jay St, Brooklyn. The whole thing is a Python scraper + an HTML report + a GitHub Actions cron + GitHub Pages. **That's the entire architecture, and it's intentional.** It went through several rounds of "what if we also..." before settling here — see *History* below.
+
+**Target:** apartments under **$1,500/month** within ~**30-minute commute** of campus (geodesic ~4 mi proxy). Studio / 1BR / 2BR full units, not room shares. The original constants ($1,200–$3,500, 1.5 mi) were too tight for actual student affordability — they returned listings nobody could afford.
 
 ## Architecture
 
 | File | Purpose |
 |---|---|
 | `scraper.py` | Pulls Craigslist Brooklyn apartments, filters by price/distance/recency, scores by fit |
-| `report.py` | Renders the HTML card-layout report |
+| `report.py` | Renders the editorial-dashboard HTML report (Fraunces + Newsreader + JetBrains Mono, paper-cream theme, localStorage state for star/hide/notes, Leaflet map) |
 | `manual_urls.txt` | Append-only file of URLs aunt/uncle text in; scraper merges them with scraped results |
 | `.github/workflows/scrape.yml` | Daily cron + on-demand trigger; runs scraper, commits `docs/` back to main |
 | `docs/index.html` | What GitHub Pages serves at `animeshux.github.io/khoj/` |
