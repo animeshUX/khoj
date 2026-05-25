@@ -5,3 +5,7 @@ __pycache__/
 /apartments_*.csv
 /apartments_*.html
 /sample_report.*
+# Local session notes / handoffs — not for the public repo
+/session_handoff.md
+/SESSION_HANDOFF.md
+/.claude/
