@@ -13,7 +13,7 @@ import sys
 import time
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -371,44 +371,56 @@ def _guess_bedrooms_from_text(title: str, description: str):
     return None
 
 
-def _fetch_external_listing(url: str) -> dict:
+def _fetch_external_listing(url: str, seed: dict | None = None) -> dict:
     """Fetch a non-Craigslist URL and pull as much listing info as we can.
 
     Combines OpenGraph + schema.org JSON-LD (price, geo, address). Falls back
-    to text inference for bedrooms when structured data omits it. Returns
-    empty dict on fetch failure or when we can't even get a title."""
-    try:
-        time.sleep(REQUEST_DELAY_SEC)
-        resp = session.get(url, timeout=HTTP_TIMEOUT, allow_redirects=True)
-        resp.raise_for_status()
-    except (requests.RequestException, RuntimeError) as e:
-        print(f"[external fail] {url}: {e}", file=sys.stderr)
-        return {}
-    soup = BeautifulSoup(resp.text, "html.parser")
+    to text inference for bedrooms when structured data omits it.
 
-    def meta(name: str, attr: str = "property") -> str:
-        el = soup.find("meta", attrs={attr: name})
-        return (el.get("content") or "").strip() if el and el.get("content") else ""
-
-    title = (meta("og:title")
-             or meta("twitter:title", attr="name")
-             or (soup.find("title").get_text(strip=True) if soup.find("title") else ""))
-    description = meta("og:description") or meta("description", attr="name")
-
+    `seed` may carry og_title/og_description pre-fetched by the Apps Script
+    enrichment — used when the live fetch returns no metadata (datacenter-IP
+    blocking) or fails entirely (StreetEasy/Cloudflare 403). When both fail,
+    a slug-derived title keeps the row visible as a stub card."""
+    seed = seed or {}
+    title = description = ""
     price = None
     lat = lng = None
     address = ""
     neighborhood = ""
-    for node in _walk_jsonld(soup):
-        if price is None:
-            price = _extract_price(node)
-        if lat is None:
-            lat, lng = _extract_geo(node)
-        if not address:
-            street, locality = _extract_address(node)
-            if street or locality:
-                address = street
-                neighborhood = locality.title() if locality else neighborhood
+
+    try:
+        time.sleep(REQUEST_DELAY_SEC)
+        resp = session.get(url, timeout=HTTP_TIMEOUT, allow_redirects=True)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        def meta(name: str, attr: str = "property") -> str:
+            el = soup.find("meta", attrs={attr: name})
+            return (el.get("content") or "").strip() if el and el.get("content") else ""
+
+        title = (meta("og:title")
+                 or meta("twitter:title", attr="name")
+                 or (soup.find("title").get_text(strip=True) if soup.find("title") else ""))
+        description = meta("og:description") or meta("description", attr="name")
+
+        for node in _walk_jsonld(soup):
+            if price is None:
+                price = _extract_price(node)
+            if lat is None:
+                lat, lng = _extract_geo(node)
+            if not address:
+                street, locality = _extract_address(node)
+                if street or locality:
+                    address = street
+                    neighborhood = locality.title() if locality else neighborhood
+    except (requests.RequestException, RuntimeError) as e:
+        print(f"[external fail] {url}: {e}", file=sys.stderr)
+
+    # Layered fallbacks: live fetch → Apps Script seed → URL slug.
+    if not title:
+        title = seed.get("og_title") or _title_from_slug(url)
+    if not description:
+        description = seed.get("og_description", "")
 
     return {
         "title": title,
@@ -570,11 +582,14 @@ def main():
     # Family-submitted URLs (manual_urls.txt + submissions.csv intake from a Google Sheet).
     # These bypass the hard filters — if someone took the time to submit it, surface it
     # regardless of price/distance. Craigslist URLs get the full parse+score pipeline;
-    # everything else falls back to OpenGraph metadata so AmberStudent / StreetEasy /
-    # PadMapper / etc. submissions at least show up as a basic card with title + link.
-    extra_urls = _read_manual_urls(args.manual_urls) + _read_submissions_csv(submissions_path)
+    # everything else falls back to OpenGraph metadata (live fetch → Apps Script seed →
+    # URL slug) so non-Craigslist submissions always surface, even when the source site
+    # strips metadata or returns 403 to the CI runner's datacenter IP.
+    manual_items = [{"url": u} for u in _read_manual_urls(args.manual_urls)]
+    extra_items = manual_items + _read_submissions_csv(submissions_path)
     n_extra_new = n_extra_dup = 0
-    for url in extra_urls:
+    for item in extra_items:
+        url = item["url"]
         if url in seen_urls:
             n_extra_dup += 1
             continue
@@ -591,9 +606,11 @@ def main():
                 continue
             listing.score = score(listing)
         else:
-            info = _fetch_external_listing(url)
+            info = _fetch_external_listing(url, seed=item)
+            # Title is now always non-empty (slug fallback ensures it) — skip only if
+            # the URL itself is so degenerate we can't even slug it.
             if not info.get("title"):
-                print(f"[skip external] {url}: no metadata found", file=sys.stderr)
+                print(f"[skip external] {url}: unusable URL", file=sys.stderr)
                 continue
             lat, lng = info.get("lat"), info.get("lng")
             dist = (geodesic(CAMPUS_COORDS, (lat, lng)).miles
