@@ -64,7 +64,7 @@ body {
     url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='240' height='240' filter='url(%23n)' opacity='0.06'/></svg>");
 }
 
-.paper { max-width: 1180px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+.paper { max-width: none; margin: 0; padding: 3rem 2rem 6rem; }
 
 /* ------------------------------------------------------------------ Masthead */
 .masthead {
@@ -604,7 +604,7 @@ body {
 }
 
 @media (min-width: 1100px) {
-  .paper { max-width: 1440px; }       /* widen so list + map both breathe */
+  .paper { max-width: none; }       /* full viewport width */
   .list-with-map {
     display: grid;
     grid-template-columns: minmax(0, 1fr) clamp(400px, 38vw, 560px);
@@ -715,6 +715,73 @@ body {
 }
 .leaflet-tooltip.station-tooltip b { font-family: var(--serif-display); font-weight: 600; }
 .leaflet-tooltip.station-tooltip::before { display: none; }    /* hide arrow */
+
+/* Layer control — overlay toggles, top-right of the map */
+.leaflet-control-layers {
+  background: var(--paper) !important;
+  border: 1px solid var(--ink) !important;
+  border-radius: 1px !important;
+  box-shadow: 3px 3px 0 var(--paper-tint), 3px 3px 0 1px var(--ink) !important;
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  color: var(--ink);
+}
+.leaflet-control-layers-toggle {
+  background-color: var(--paper) !important;
+  background-image: none !important;
+  width: 32px; height: 32px;
+}
+.leaflet-control-layers-toggle::before {
+  content: "LAYERS";
+  display: block;
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  line-height: 32px;
+  text-align: center;
+}
+.leaflet-control-layers-expanded {
+  padding: 0.65rem 0.85rem 0.7rem !important;
+  min-width: 180px;
+}
+.leaflet-control-layers-expanded::before {
+  content: "OVERLAYS";
+  display: block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.leaflet-control-layers-overlays {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.leaflet-control-layers-overlays label {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.leaflet-control-layers-overlays label:hover { color: var(--crimson); }
+.leaflet-control-layers-overlays input[type="checkbox"] {
+  accent-color: var(--crimson);
+}
+.leaflet-control-layers-separator {
+  border-top: 1px solid var(--rule-soft) !important;
+  margin: 0.4rem 0 !important;
+}
 
 /* ----------------------------------------------------------- Responsive */
 @media (max-width: 720px) {
@@ -1091,6 +1158,80 @@ const CAMPUS = [40.6929, -73.9870];
         },
       }).addTo(mapInstance);
       if (markerLayer) markerLayer.bringToFront();
+    }).catch(() => {});
+
+    loadToggleableOverlays();
+  }
+
+  // Layers the user can flip on/off via L.control.layers — they're NOT added to
+  // the map by default; the control just registers them so the brother can pick.
+  function loadToggleableOverlays() {
+    // Create control upfront so async layers can register as they arrive
+    const control = L.control.layers(null, {}, {
+      collapsed: true, position: 'topright', sortLayers: false,
+    }).addTo(mapInstance);
+
+    // --- Neighborhoods + 90-day 311 noise complaints ---
+    fetch('data/nta-noise.geojson').then(r => r.ok && r.json()).then(geo => {
+      if (!geo || !mapInstance) return;
+
+      // Compute the upper bound of noise density for color scaling. We use
+      // 90th percentile (not max) so a few outliers don't blow out the gradient.
+      const dens = geo.features.map(f => f.properties.noise_per_sqmi).sort((a, b) => a - b);
+      const p90 = dens[Math.floor(dens.length * 0.9)] || 1;
+
+      const ntaOutlines = L.geoJSON(geo, {
+        style: { color: '#1A1612', weight: 0.7, opacity: 0.35, fillOpacity: 0 },
+        onEachFeature: (feat, layer) => {
+          layer.bindTooltip(esc(feat.properties.name), {
+            sticky: true, className: 'station-tooltip', direction: 'top',
+          });
+        },
+      });
+
+      const noiseLayer = L.geoJSON(geo, {
+        style: (feat) => {
+          const d = feat.properties.noise_per_sqmi || 0;
+          const ratio = Math.min(d / p90, 1);
+          return {
+            color: '#8C2026', weight: 0.4, opacity: 0.35,
+            fillColor: '#8C2026', fillOpacity: 0.04 + ratio * 0.42,
+          };
+        },
+        onEachFeature: (feat, layer) => {
+          const p = feat.properties;
+          layer.bindTooltip(
+            `<b>${esc(p.name)}</b><br>${esc(p.borough)}<br>` +
+            `${(p.noise_90d || 0).toLocaleString()} noise complaints / 90d<br>` +
+            `${(p.noise_per_sqmi || 0).toLocaleString()} per sq mi`,
+            { sticky: true, className: 'station-tooltip', direction: 'top' }
+          );
+        },
+      });
+
+      control.addOverlay(ntaOutlines, '🏘 Neighborhood borders');
+      control.addOverlay(noiseLayer, '🔊 311 noise (last 90 days)');
+    }).catch(() => {});
+
+    // --- Parks ---
+    fetch('data/parks.geojson').then(r => r.ok && r.json()).then(geo => {
+      if (!geo || !mapInstance) return;
+      const parksLayer = L.geoJSON(geo, {
+        style: {
+          color: '#3F5F3F', weight: 0.4, opacity: 0.55,
+          fillColor: '#7BAA7B', fillOpacity: 0.42,
+        },
+        onEachFeature: (feat, layer) => {
+          const p = feat.properties;
+          if (p.name) {
+            layer.bindTooltip(
+              `<b>${esc(p.name)}</b><br>${(p.acres || 0).toFixed(1)} acres`,
+              { sticky: true, className: 'station-tooltip', direction: 'top' }
+            );
+          }
+        },
+      });
+      control.addOverlay(parksLayer, '🌳 Parks');
     }).catch(() => {});
   }
 
