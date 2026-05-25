@@ -25,6 +25,7 @@ import re
 import statistics
 from datetime import datetime
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from scraper import Listing
@@ -133,11 +134,21 @@ def _extract_tags(title, description):
     return tags
 
 
+def _external_source(url: str) -> str:
+    """For non-Craigslist URLs, return the friendly hostname (e.g. 'streeteasy.com')
+    so the report can show a 'From streeteasy.com' badge. Returns '' for Craigslist."""
+    host = (urlparse(url).hostname or "").lower()
+    if not host or "craigslist.org" in host:
+        return ""
+    return host.removeprefix("www.")
+
+
 def _payload(listings):
     out = []
     for i, l in enumerate(listings, 1):
         cleaned = _clean_description(l.description)
         desc = cleaned[:340] + ("…" if len(cleaned) > 340 else "")
+        source = _external_source(l.url)
         out.append({
             "n": i,
             "url": l.url,
@@ -155,6 +166,7 @@ def _payload(listings):
             "score": l.score,
             "tags": _extract_tags(l.title, l.description or ""),
             "mapSvg": _mini_map_svg(l.lat, l.lng),
+            "source": source,  # empty for Craigslist, hostname for external submissions
         })
     return out
 
@@ -494,6 +506,14 @@ body {
   margin-top: -0.15rem;
 }
 .entry-num-meta.fresh { color: var(--crimson); }
+.entry-num-meta.external {
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+}
+.entry.is-external .entry-num { color: var(--gold); }
+.entry.is-external .mm-line { stroke: var(--gold); opacity: 0.5; }
+.entry.is-external .mm-listing { fill: var(--gold); }
 
 /* Per-row mini-map: stylized A-to-B diagram, listing -> NYU Tandon (370 Jay) */
 .mini-map {
@@ -875,21 +895,27 @@ JS = r"""
     const starred = state.starred.has(l.url);
     const hidden = state.hidden.has(l.url);
     const note = state.notes[l.url];
+    const isExternal = !!l.source;       // non-Craigslist submissions
     const bedLabel = l.bedrooms === 0 ? 'Studio' : (l.bedrooms != null ? l.bedrooms + ' BR' : '?');
     const walking = l.walkMin ? `${l.walkMin} min walk` : '';
     const distance = l.distance != null ? `${l.distance.toFixed(2)} mi` : '?';
     const fresh = freshnessFor(l.posted);
     const numClass = 'entry-num ' + (l.score >= 40 ? 'score-high' : l.score >= 20 ? 'score-mid' : '');
+    // Eyebrow label under the serial number: source domain for external,
+    // Fresh/Score for Craigslist scrapes.
+    const numMetaLabel = isExternal ? l.source : (fresh ? 'Fresh' : 'Score ' + l.score);
     const tags = (l.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
     const anomaly = priceAnomaly(l.price, l.bedrooms);
+    const ctaLabel = isExternal ? `View on ${esc(l.source)} →` : 'View on Craigslist →';
+    const datePrefix = isExternal ? 'submitted ' : 'posted ';
 
     return `
-      <li class="entry${hidden ? ' is-hidden' : ''}${starred ? ' is-starred' : ''}" data-url="${esc(l.url)}">
+      <li class="entry${hidden ? ' is-hidden' : ''}${starred ? ' is-starred' : ''}${isExternal ? ' is-external' : ''}" data-url="${esc(l.url)}">
         <div class="${numClass}">
           ${pad(l.n)}
-          <div class="entry-num-meta${fresh ? ' fresh' : ''}">${fresh ? 'Fresh' : 'Score ' + l.score}</div>
+          <div class="entry-num-meta${fresh && !isExternal ? ' fresh' : ''}${isExternal ? ' external' : ''}">${esc(numMetaLabel)}</div>
           ${l.mapSvg || ''}
-          <div class="mm-caption${starred ? ' is-starred' : ''}">listing → 370 jay</div>
+          ${l.mapSvg ? `<div class="mm-caption${starred ? ' is-starred' : ''}">listing → 370 jay</div>` : ''}
         </div>
         <div class="entry-body">
           <div class="entry-meta">
@@ -897,7 +923,7 @@ JS = r"""
             ${esc(bedLabel)}
             <span class="sep">·</span>${esc(distance)}${walking ? ' (' + esc(walking) + ')' : ''}
             <span class="sep">·</span>${esc(l.neighborhood || 'Brooklyn')}
-            <span class="sep">·</span>posted ${esc(l.postedRel || '?')}
+            <span class="sep">·</span>${datePrefix}${esc(l.postedRel || '?')}
             ${anomaly ? '<span class="sep">·</span>' + anomaly : ''}
           </div>
           <h2 class="entry-title"><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></h2>
@@ -905,7 +931,7 @@ JS = r"""
           ${tags ? `<div class="entry-tags">${tags}</div>` : ''}
           ${note ? `<div class="note-display">${esc(note)}</div>` : ''}
           <div class="entry-actions">
-            <a class="act act-primary" href="${esc(l.url)}" target="_blank" rel="noopener">View on Craigslist →</a>
+            <a class="act act-primary" href="${esc(l.url)}" target="_blank" rel="noopener">${ctaLabel}</a>
             <button class="act act-star${starred ? ' starred' : ''}" data-act="star">★ ${starred ? 'Starred' : 'Star'}</button>
             <button class="act" data-act="hide">${hidden ? 'Restore' : 'Hide'}</button>
             <button class="act" data-act="note">${note ? '✎ Edit Note' : '✎ Note'}</button>
