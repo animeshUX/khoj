@@ -208,6 +208,26 @@ CSS = r"""
   --serif-display: 'Fraunces', Georgia, serif;
   --serif-body: 'Newsreader', Georgia, serif;
   --mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Type scale — base 17px, major-third (1.25) ratio for headings.
+     Smaller steps near body use a custom mono/small/micro triple so
+     interactive controls have a touch-target hierarchy without the
+     0.62/0.65/0.7/0.74/0.78rem jumble we used to have. */
+  --type-mega:  4.5rem;     /* 76.5px — masthead display ceiling */
+  --type-h1:    2.75rem;    /* 46.75px — h1 / dismissed stamp */
+  --type-h2:    1.875rem;   /* 31.9px — entry serial number */
+  --type-h3:    1.5rem;     /* 25.5px — stat values, entry titles */
+  --type-h4:    1.25rem;    /* 21.25px — prices */
+  --type-lead:  1.125rem;   /* 19.1px — masthead subhead, lead text */
+  --type-body:  1rem;       /* 17px — body, descriptions */
+  --type-small: 0.875rem;   /* 14.9px — tabs, action buttons */
+  --type-mono:  0.8125rem;  /* 13.8px — mono meta lines, chips */
+  --type-micro: 0.6875rem;  /* 11.7px — eyebrows, labels */
+
+  --leading-display: 0.95;
+  --leading-tight:   1.15;
+  --leading-snug:    1.25;
+  --leading-normal:  1.55;
 }
 
 * { box-sizing: border-box; }
@@ -217,8 +237,8 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--serif-body);
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: 17px;
+  line-height: var(--leading-normal);
   font-feature-settings: "kern", "liga", "calt";
   background-image:
     radial-gradient(circle at 90% 10%, rgba(140, 32, 38, 0.02), transparent 40%),
@@ -248,7 +268,7 @@ body {
   flex-wrap: wrap;
   gap: 0.5rem 1.5rem;
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -258,12 +278,12 @@ body {
 }
 .masthead-title {
   font-family: var(--serif-display);
-  font-size: clamp(2.5rem, 6vw, 5.25rem);
+  font-size: clamp(2.5rem, 5.4vw, var(--type-mega));
   font-weight: 500;
   font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 1;
   letter-spacing: -0.025em;
   margin: 0;
-  line-height: 0.94;
+  line-height: var(--leading-display);
 }
 .masthead-title em {
   font-style: italic;
@@ -275,10 +295,11 @@ body {
   font-family: var(--serif-body);
   font-style: italic;
   color: var(--ink-soft);
-  font-size: 1rem;
-  max-width: 60ch;
+  font-size: var(--type-lead);
+  line-height: var(--leading-snug);
+  max-width: 56ch;
   margin: 1.1rem 0 0;
-  font-variation-settings: "opsz" 16;
+  font-variation-settings: "opsz" 18;
 }
 
 /* ----------------------------------------------------------------- Stats row */
@@ -297,18 +318,19 @@ body {
 .stat-label {
   display: block;
   font-family: var(--mono);
-  font-size: 0.62rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-mute);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.35rem;
 }
 .stat-value {
   font-family: var(--serif-display);
-  font-size: 1.65rem;
+  font-size: var(--type-h3);
   font-weight: 500;
   font-variation-settings: "opsz" 72;
   letter-spacing: -0.01em;
+  line-height: var(--leading-tight);
 }
 
 /* ----------------------------------------------------------------------- Tabs */
@@ -326,7 +348,7 @@ body {
   margin-bottom: -2px;
   padding: 0.7rem 1.3rem 0.7rem 0;
   font-family: var(--mono);
-  font-size: 0.78rem;
+  font-size: var(--type-small);
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -340,7 +362,7 @@ body {
 .tab.active { color: var(--ink); border-bottom-color: var(--crimson); }
 .tab-count {
   display: inline-block;
-  font-size: 0.62rem;
+  font-size: var(--type-micro);
   background: var(--ink);
   color: var(--paper);
   padding: 0.15rem 0.4rem;
@@ -365,7 +387,7 @@ body {
 .chip-group::before {
   content: attr(data-label);
   font-family: var(--mono);
-  font-size: 0.62rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-mute);
@@ -375,9 +397,9 @@ body {
   background: transparent;
   border: 1px solid var(--rule);
   color: var(--ink-soft);
-  padding: 0.32rem 0.7rem;
+  padding: 0.35rem 0.75rem;
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: var(--type-mono);
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: all 100ms ease;
@@ -395,10 +417,10 @@ body {
   gap: 0.5rem;
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: var(--type-mono);
 }
 .sort-wrap label {
-  font-size: 0.62rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-mute);
@@ -406,9 +428,9 @@ body {
 #sort {
   background: var(--paper);
   border: 1px solid var(--rule);
-  padding: 0.35rem 0.6rem;
+  padding: 0.4rem 0.7rem;
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: var(--type-mono);
   color: var(--ink);
   cursor: pointer;
 }
@@ -444,7 +466,7 @@ body {
 
 .entry-num {
   font-family: var(--serif-display);
-  font-size: 1.85rem;
+  font-size: var(--type-h2);
   font-weight: 400;
   font-variation-settings: "opsz" 96;
   color: var(--ink-mute);
@@ -463,7 +485,7 @@ body {
 
 .entry-num-meta {
   font-family: var(--mono);
-  font-size: 0.55rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-mute);
@@ -515,7 +537,7 @@ body {
 }
 .mm-caption {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.58rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-mute);
@@ -528,14 +550,14 @@ body {
 
 .entry-meta {
   font-family: var(--mono);
-  font-size: 0.74rem;
+  font-size: var(--type-mono);
   color: var(--ink-soft);
   letter-spacing: 0.03em;
-  line-height: 1.45;
+  line-height: var(--leading-snug);
 }
 .entry-meta .price {
   font-family: var(--serif-display);
-  font-size: 1.4rem;
+  font-size: var(--type-h4);
   font-weight: 600;
   color: var(--ink);
   font-variation-settings: "opsz" 36;
@@ -555,10 +577,10 @@ body {
 
 .entry-title {
   font-family: var(--serif-display);
-  font-size: 1.45rem;
+  font-size: var(--type-h3);
   font-weight: 500;
   font-variation-settings: "opsz" 36, "SOFT" 30, "WONK" 0;
-  line-height: 1.18;
+  line-height: var(--leading-tight);
   letter-spacing: -0.012em;
   margin: 0.2rem 0 0;
   color: var(--ink);
@@ -578,11 +600,11 @@ body {
 .entry-desc {
   font-family: var(--serif-body);
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.55;
-  margin: 0.35rem 0 0;
-  max-width: 60ch;
-  font-variation-settings: "opsz" 14;
+  font-size: var(--type-body);
+  line-height: var(--leading-normal);
+  margin: 0.4rem 0 0;
+  max-width: 58ch;
+  font-variation-settings: "opsz" 17;
 }
 
 .entry-tags {
@@ -593,9 +615,9 @@ body {
 }
 .tag {
   font-family: var(--mono);
-  font-size: 0.65rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.06em;
-  padding: 0.2rem 0.55rem;
+  padding: 0.22rem 0.6rem;
   border: 1px solid var(--rule);
   color: var(--ink-soft);
   background: var(--paper-warm);
@@ -613,9 +635,9 @@ body {
   background: transparent;
   border: 1px solid var(--rule);
   color: var(--ink);
-  padding: 0.4rem 0.85rem;
+  padding: 0.45rem 0.9rem;
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: var(--type-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
@@ -651,7 +673,7 @@ body {
   top: 50%; left: 30%;
   transform: translate(-50%, -50%) rotate(-7deg);
   font-family: var(--serif-display);
-  font-size: 2.5rem;
+  font-size: var(--type-h1);
   font-weight: 700;
   color: var(--crimson);
   opacity: 0.35;
@@ -674,10 +696,10 @@ body {
   border: 1px solid var(--rule);
   font-family: var(--serif-body);
   font-style: italic;
-  font-size: 0.95rem;
-  padding: 0.6rem 0.8rem;
+  font-size: var(--type-body);
+  padding: 0.65rem 0.85rem;
   resize: vertical;
-  min-height: 70px;
+  min-height: 72px;
   color: var(--ink);
 }
 .note-area-actions { display: flex; gap: 0.4rem; margin-top: 0.45rem; }
@@ -687,17 +709,18 @@ body {
   font-style: italic;
   color: var(--ink-soft);
   background: var(--paper-warm);
-  padding: 0.55rem 0.85rem 0.55rem 1rem;
+  padding: 0.6rem 0.9rem 0.6rem 1rem;
   border-left: 3px solid var(--gold);
-  margin-top: 0.6rem;
-  font-size: 0.95rem;
-  max-width: 60ch;
+  margin-top: 0.65rem;
+  font-size: var(--type-body);
+  max-width: 58ch;
+  line-height: var(--leading-snug);
 }
 .note-display::before {
   content: "Note · ";
   font-family: var(--mono);
   font-style: normal;
-  font-size: 0.62rem;
+  font-size: var(--type-micro);
   color: var(--gold);
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -711,7 +734,7 @@ body {
   color: var(--ink-soft);
   font-style: italic;
   font-family: var(--serif-body);
-  font-size: 1.05rem;
+  font-size: var(--type-lead);
 }
 
 /* ----------------------------------------------------------------- Map */
@@ -748,25 +771,26 @@ body {
   border-top: 1px solid var(--rule);
   font-family: var(--serif-body);
   color: var(--ink-soft);
-  font-size: 0.95rem;
+  font-size: var(--type-body);
+  line-height: var(--leading-normal);
 }
 .colophon h3 {
   font-family: var(--mono);
-  font-size: 0.7rem;
+  font-size: var(--type-micro);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ink-mute);
-  margin: 1.5rem 0 0.5rem;
+  margin: 1.5rem 0 0.6rem;
   font-weight: 500;
 }
 .colophon ul { padding-left: 1.25rem; margin: 0.25rem 0 1rem; }
-.colophon li { margin: 0.3rem 0; }
+.colophon li { margin: 0.35rem 0; }
 .colophon a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); }
 .colophon a:hover { text-decoration-color: var(--crimson); color: var(--crimson); }
 .colophon .small {
   margin-top: 1.5rem;
   font-family: var(--mono);
-  font-size: 0.65rem;
+  font-size: var(--type-micro);
   color: var(--ink-mute);
   letter-spacing: 0.06em;
 }
@@ -776,7 +800,7 @@ body {
   .paper { padding: 1.5rem 1rem 3rem; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .entry { grid-template-columns: 60px 1fr; gap: 1rem; padding: 1.25rem 0; }
-  .entry-num { font-size: 2rem; }
+  .entry-num { font-size: var(--type-h3); }
   .controls { flex-direction: column; align-items: stretch; }
   .sort-wrap { margin-left: 0; justify-content: space-between; }
   .chip-group { flex-wrap: wrap; }
