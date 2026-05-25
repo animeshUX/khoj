@@ -436,14 +436,19 @@ def _read_manual_urls(path: str) -> list[str]:
     return urls
 
 
-def _read_submissions_csv(path: str) -> list[str]:
-    """Read URLs from a Google-Sheets-style intake CSV (Timestamp, URL, Submitted by, Note).
+def _read_submissions_csv(path: str) -> list[dict]:
+    """Read rows from a Google-Sheets-style intake CSV (Timestamp, URL, Submitted by, Note).
 
     `path` may be:
       - a local file path (e.g. `submissions.csv` in the repo), or
       - an http(s) URL — typically a Google Apps Script web-app endpoint that
         returns the sheet contents as CSV. Authentication, if any, lives in the
         URL itself (e.g. `?key=...`).
+
+    If the Apps Script enrichment is deployed, the CSV may also contain
+    `og_title` / `og_description` columns — pre-fetched from Google's IPs so
+    sites that strip metadata for datacenter IPs (looking at you, AmberStudent)
+    still surface usefully. Columns are forward-compatible: missing = "".
 
     Rows whose URL cell isn't an http(s) URL are skipped — submitters sometimes
     paste the page title from the browser tab instead of the link."""
@@ -461,7 +466,7 @@ def _read_submissions_csv(path: str) -> list[str]:
     else:
         return []
 
-    urls = []
+    rows = []
     for row in reader:
         cell = (row.get("URL") or "").strip()
         if not cell:
@@ -469,8 +474,29 @@ def _read_submissions_csv(path: str) -> list[str]:
         if not (cell.startswith("http://") or cell.startswith("https://")):
             print(f"[skip submission] not a URL: {cell[:60]!r}", file=sys.stderr)
             continue
-        urls.append(cell)
-    return urls
+        rows.append({
+            "url": cell,
+            "og_title": (row.get("og_title") or "").strip(),
+            "og_description": (row.get("og_description") or "").strip(),
+        })
+    return rows
+
+
+def _title_from_slug(url: str) -> str:
+    """Last-resort title for a URL whose page returned no OpenGraph/JSON-LD.
+
+    Picks the path segment with the most letters, drops trailing numeric IDs
+    that sites tack on (e.g. `bernard-brooklyn-home-brooklyn-2207181201880`),
+    title-cases the rest. Better than dropping the row entirely."""
+    path = urlparse(url).path.rstrip("/")
+    segments = [s for s in path.split("/") if s]
+    if not segments:
+        return ""
+    best = max(segments, key=lambda s: sum(1 for c in s if c.isalpha()))
+    parts = best.split("-")
+    while parts and parts[-1].isdigit():
+        parts.pop()
+    return " ".join(parts).title()
 
 
 def print_top(listings: list[Listing], n: int = 10) -> None:
