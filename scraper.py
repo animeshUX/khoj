@@ -314,20 +314,38 @@ def _read_manual_urls(path: str) -> list[str]:
 
 def _read_submissions_csv(path: str) -> list[str]:
     """Read URLs from a Google-Sheets-style intake CSV (Timestamp, URL, Submitted by, Note).
-    Rows whose URL cell isn't an http(s) URL are skipped with a warning — family submitters
-    sometimes paste the page title instead of the link."""
-    if not os.path.exists(path):
+
+    `path` may be:
+      - a local file path (e.g. `submissions.csv` in the repo), or
+      - an http(s) URL — typically a Google Apps Script web-app endpoint that
+        returns the sheet contents as CSV. Authentication, if any, lives in the
+        URL itself (e.g. `?key=...`).
+
+    Rows whose URL cell isn't an http(s) URL are skipped — submitters sometimes
+    paste the page title from the browser tab instead of the link."""
+    if path.startswith(("http://", "https://")):
+        try:
+            resp = session.get(path, timeout=HTTP_TIMEOUT, allow_redirects=True)
+            resp.raise_for_status()
+            lines = resp.text.splitlines()
+        except (requests.RequestException, RuntimeError) as e:
+            print(f"[warn] could not fetch submissions URL: {e}", file=sys.stderr)
+            return []
+        reader = csv.DictReader(lines)
+    elif os.path.exists(path):
+        reader = csv.DictReader(open(path, encoding="utf-8", newline=""))
+    else:
         return []
+
     urls = []
-    with open(path, encoding="utf-8", newline="") as f:
-        for row in csv.DictReader(f):
-            cell = (row.get("URL") or "").strip()
-            if not cell:
-                continue
-            if not (cell.startswith("http://") or cell.startswith("https://")):
-                print(f"[skip submission] not a URL: {cell[:60]!r}", file=sys.stderr)
-                continue
-            urls.append(cell)
+    for row in reader:
+        cell = (row.get("URL") or "").strip()
+        if not cell:
+            continue
+        if not (cell.startswith("http://") or cell.startswith("https://")):
+            print(f"[skip submission] not a URL: {cell[:60]!r}", file=sys.stderr)
+            continue
+        urls.append(cell)
     return urls
 
 
@@ -355,8 +373,13 @@ def main():
     ap.add_argument("--manual-urls", default="manual_urls.txt",
                     help="Path to a file of extra URLs to include (one per line, # comments allowed). Default: manual_urls.txt")
     ap.add_argument("--submissions", default="submissions.csv",
-                    help="Path to a CSV (Timestamp, URL, Submitted by, Note) of family-submitted listings. Default: submissions.csv")
+                    help="Path or URL to a CSV (Timestamp, URL, Submitted by, Note) of family-submitted "
+                         "listings. Default: submissions.csv. Override with env var KHOJ_SUBMISSIONS_URL.")
     args = ap.parse_args()
+
+    # Env var beats the CLI default so the workflow can point at the live Google Sheet
+    # without committing the URL to the repo.
+    submissions_path = os.environ.get("KHOJ_SUBMISSIONS_URL") or args.submissions
 
     if args.sanity_check:
         try:
@@ -397,7 +420,7 @@ def main():
     # Family-submitted URLs (manual_urls.txt + submissions.csv intake from a Google Sheet).
     # These bypass the hard filters — if someone took the time to submit it, surface it
     # regardless of price/distance. Score still applies so it ranks alongside scraped listings.
-    extra_urls = _read_manual_urls(args.manual_urls) + _read_submissions_csv(args.submissions)
+    extra_urls = _read_manual_urls(args.manual_urls) + _read_submissions_csv(submissions_path)
     n_extra_new = n_extra_dup = 0
     for url in extra_urls:
         if url in seen_urls:

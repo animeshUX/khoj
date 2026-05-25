@@ -32,6 +32,8 @@ jobs:
         run: python scraper.py --sanity-check
 
       - name: Run scraper
+        env:
+          KHOJ_SUBMISSIONS_URL: ${{ secrets.KHOJ_SUBMISSIONS_URL }}
         run: python scraper.py --pages-mode --max-listings 100
 
       - name: Commit updated report
