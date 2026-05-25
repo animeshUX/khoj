@@ -1131,16 +1131,76 @@ JS = r"""
   let mountedAt = null;            // 'map-side' | 'map'
   const markerByUrl = new Map();   // url → Leaflet marker
 
+  // Tile providers — all free, no API key. Picked for utility navigating NYC:
+  // Streets for orientation, Minimal so pins pop, Satellite for what the block
+  // actually looks like, Transit because the train is how you'll actually get
+  // to campus. Selection persists in localStorage so it survives refreshes.
+  const TILE_PROVIDERS = {
+    streets: {
+      label: 'Streets',
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19,
+    },
+    minimal: {
+      label: 'Minimal',
+      url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      attribution: '&copy; OpenStreetMap, &copy; CARTO',
+      maxZoom: 20,
+      subdomains: 'abcd',
+    },
+    satellite: {
+      label: 'Satellite',
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 19,
+    },
+    transit: {
+      label: 'Transit',
+      url: 'https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png',
+      attribution: '&copy; OpenStreetMap, &copy; memomaps.de',
+      maxZoom: 18,
+    },
+  };
+  const TILE_DEFAULT = 'streets';
+  const TILE_KEY = 'khoj.tile';
+  let currentTileLayer = null;
+
+  function getTileChoice() {
+    try { return localStorage.getItem(TILE_KEY) || TILE_DEFAULT; } catch { return TILE_DEFAULT; }
+  }
+  function applyTile(key) {
+    if (!mapInstance) return;
+    const cfg = TILE_PROVIDERS[key] || TILE_PROVIDERS[TILE_DEFAULT];
+    if (currentTileLayer) currentTileLayer.remove();
+    const opts = { attribution: cfg.attribution, maxZoom: cfg.maxZoom };
+    if (cfg.subdomains) opts.subdomains = cfg.subdomains;
+    currentTileLayer = L.tileLayer(cfg.url, opts).addTo(mapInstance);
+  }
+
+  function setupTileSelects() {
+    const choice = getTileChoice();
+    document.querySelectorAll('[data-tile-select]').forEach(sel => {
+      sel.innerHTML = Object.entries(TILE_PROVIDERS).map(([k, p]) =>
+        `<option value="${k}"${k === choice ? ' selected' : ''}>${p.label}</option>`).join('');
+      sel.addEventListener('change', () => {
+        try { localStorage.setItem(TILE_KEY, sel.value); } catch {}
+        applyTile(sel.value);
+        document.querySelectorAll('[data-tile-select]').forEach(s => {
+          if (s !== sel) s.value = sel.value;
+        });
+      });
+    });
+  }
+
   function mountMap(targetId) {
     if (mapInstance && mountedAt === targetId) { refreshMapMarkers(); return; }
-    if (mapInstance) { mapInstance.remove(); markerByUrl.clear(); }
+    if (mapInstance) { mapInstance.remove(); markerByUrl.clear(); currentTileLayer = null; }
     const el = document.getElementById(targetId);
     if (!el) return;
     mountedAt = targetId;
     mapInstance = L.map(targetId, { scrollWheelZoom: false }).setView(CAMPUS, 13);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap', maxZoom: 19,
-    }).addTo(mapInstance);
+    applyTile(getTileChoice());
 
     drawDistanceRings();
     loadStaticLayers();  // commute zone + subway lines + stations (async, non-blocking)
@@ -1451,6 +1511,7 @@ JS = r"""
   } else if (document.getElementById('map-mobile')) {
     mountMap('map-mobile');
   }
+  setupTileSelects();
 })();
 """
 
