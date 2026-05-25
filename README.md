@@ -1,2 +1,2 @@
-# khoj
+# Khoj
 Apartment hunting
