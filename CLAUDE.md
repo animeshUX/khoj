@@ -56,7 +56,7 @@ python scraper.py --diagnose        # probe endpoints when --sanity-check 403s
 **Two intake paths for human-submitted URLs:**
 
 1. **`manual_urls.txt`** — one URL per line, `#` comments OK, optional ` | note` suffix. Used when you copy a URL someone texted you and paste it in. Read by `_read_manual_urls()` in scraper.py.
-2. **`submissions.csv`** — Google-Sheets-style intake (`Timestamp, URL, Submitted by, Note`). Used when aunt/uncle add rows to a shared Sheet, you export it as CSV and push. Read by `_read_submissions_csv()` in scraper.py. Rows whose URL cell isn't actually a link are skipped with a warning — common when someone pastes the page title by accident.
+2. **`submissions.csv` OR a `KHOJ_SUBMISSIONS_URL` env var** — Google-Sheets-style intake (`Timestamp, URL, Submitted by, Note`). `_read_submissions_csv()` accepts either a local CSV path or an http(s) URL — typically an Apps Script Web App `doGet` endpoint serving the live sheet (`?key=<secret>` for auth). The workflow injects `KHOJ_SUBMISSIONS_URL` from a GitHub repo secret so the URL never lives in the repo. Rows whose URL cell isn't actually a link are skipped with a warning — common when someone pastes the page title by accident.
 
 Both paths bypass the price/distance/recency hard filters but still get scored. Either way, commit and push; the Action picks them up on the next scheduled run or on demand from the Actions tab.
 

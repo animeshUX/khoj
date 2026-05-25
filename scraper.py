@@ -298,6 +298,130 @@ def diagnose() -> None:
     )
 
 
+def _walk_jsonld(soup):
+    """Yield every dict found inside any <script type='application/ld+json'> on the
+    page — including those nested inside @graph or arrays. Real-estate sites
+    (StreetEasy, AmberStudent, Apartments.com, …) publish detailed listings here."""
+    import json as _j
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = _j.loads(script.string or "")
+        except (_j.JSONDecodeError, TypeError, ValueError):
+            continue
+        stack = [data]
+        while stack:
+            cur = stack.pop()
+            if isinstance(cur, dict):
+                yield cur
+                stack.extend(cur.values())
+            elif isinstance(cur, list):
+                stack.extend(cur)
+
+
+def _intish(v):
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_price(node):
+    """Pull a price out of any schema.org node: direct `price`, Offer, AggregateOffer."""
+    offers = node.get("offers")
+    if isinstance(offers, dict):
+        offers = [offers]
+    if isinstance(offers, list):
+        for o in offers:
+            if not isinstance(o, dict):
+                continue
+            for k in ("price", "lowPrice"):
+                p = _intish(o.get(k))
+                if p:
+                    return p
+    return _intish(node.get("price"))
+
+
+def _extract_geo(node):
+    g = node.get("geo")
+    if isinstance(g, dict):
+        try:
+            return float(g["latitude"]), float(g["longitude"])
+        except (KeyError, TypeError, ValueError):
+            pass
+    return None, None
+
+
+def _extract_address(node):
+    a = node.get("address")
+    if isinstance(a, dict):
+        return (a.get("streetAddress") or "").strip(), (a.get("addressLocality") or "").strip()
+    return "", ""
+
+
+def _guess_bedrooms_from_text(title: str, description: str):
+    """Last-resort bedroom inference. JSON-LD often omits it; titles say it."""
+    txt = f"{title or ''}\n{description or ''}".lower()
+    m = re.search(r'(\d+)[\s-]*(?:br\b|bed\b|bedroom\b)', txt)
+    if m:
+        n = _intish(m.group(1))
+        if n is not None and 0 <= n <= 9:
+            return n
+    if re.search(r'\bstudio\b', txt):
+        return 0
+    return None
+
+
+def _fetch_external_listing(url: str) -> dict:
+    """Fetch a non-Craigslist URL and pull as much listing info as we can.
+
+    Combines OpenGraph + schema.org JSON-LD (price, geo, address). Falls back
+    to text inference for bedrooms when structured data omits it. Returns
+    empty dict on fetch failure or when we can't even get a title."""
+    try:
+        time.sleep(REQUEST_DELAY_SEC)
+        resp = session.get(url, timeout=HTTP_TIMEOUT, allow_redirects=True)
+        resp.raise_for_status()
+    except (requests.RequestException, RuntimeError) as e:
+        print(f"[external fail] {url}: {e}", file=sys.stderr)
+        return {}
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    def meta(name: str, attr: str = "property") -> str:
+        el = soup.find("meta", attrs={attr: name})
+        return (el.get("content") or "").strip() if el and el.get("content") else ""
+
+    title = (meta("og:title")
+             or meta("twitter:title", attr="name")
+             or (soup.find("title").get_text(strip=True) if soup.find("title") else ""))
+    description = meta("og:description") or meta("description", attr="name")
+
+    price = None
+    lat = lng = None
+    address = ""
+    neighborhood = ""
+    for node in _walk_jsonld(soup):
+        if price is None:
+            price = _extract_price(node)
+        if lat is None:
+            lat, lng = _extract_geo(node)
+        if not address:
+            street, locality = _extract_address(node)
+            if street or locality:
+                address = street
+                neighborhood = locality.title() if locality else neighborhood
+
+    return {
+        "title": title,
+        "description": description,
+        "price": price,
+        "bedrooms": _guess_bedrooms_from_text(title, description),
+        "lat": lat,
+        "lng": lng,
+        "neighborhood": neighborhood,
+        "address": address,
+    }
+
+
 def _read_manual_urls(path: str) -> list[str]:
     """Read URLs from a text file (one per line, blank/# comment lines ignored). Missing file = empty list."""
     if not os.path.exists(path):
@@ -314,20 +438,38 @@ def _read_manual_urls(path: str) -> list[str]:
 
 def _read_submissions_csv(path: str) -> list[str]:
     """Read URLs from a Google-Sheets-style intake CSV (Timestamp, URL, Submitted by, Note).
-    Rows whose URL cell isn't an http(s) URL are skipped with a warning — family submitters
-    sometimes paste the page title instead of the link."""
-    if not os.path.exists(path):
+
+    `path` may be:
+      - a local file path (e.g. `submissions.csv` in the repo), or
+      - an http(s) URL — typically a Google Apps Script web-app endpoint that
+        returns the sheet contents as CSV. Authentication, if any, lives in the
+        URL itself (e.g. `?key=...`).
+
+    Rows whose URL cell isn't an http(s) URL are skipped — submitters sometimes
+    paste the page title from the browser tab instead of the link."""
+    if path.startswith(("http://", "https://")):
+        try:
+            resp = session.get(path, timeout=HTTP_TIMEOUT, allow_redirects=True)
+            resp.raise_for_status()
+            lines = resp.text.splitlines()
+        except (requests.RequestException, RuntimeError) as e:
+            print(f"[warn] could not fetch submissions URL: {e}", file=sys.stderr)
+            return []
+        reader = csv.DictReader(lines)
+    elif os.path.exists(path):
+        reader = csv.DictReader(open(path, encoding="utf-8", newline=""))
+    else:
         return []
+
     urls = []
-    with open(path, encoding="utf-8", newline="") as f:
-        for row in csv.DictReader(f):
-            cell = (row.get("URL") or "").strip()
-            if not cell:
-                continue
-            if not (cell.startswith("http://") or cell.startswith("https://")):
-                print(f"[skip submission] not a URL: {cell[:60]!r}", file=sys.stderr)
-                continue
-            urls.append(cell)
+    for row in reader:
+        cell = (row.get("URL") or "").strip()
+        if not cell:
+            continue
+        if not (cell.startswith("http://") or cell.startswith("https://")):
+            print(f"[skip submission] not a URL: {cell[:60]!r}", file=sys.stderr)
+            continue
+        urls.append(cell)
     return urls
 
 
@@ -355,8 +497,13 @@ def main():
     ap.add_argument("--manual-urls", default="manual_urls.txt",
                     help="Path to a file of extra URLs to include (one per line, # comments allowed). Default: manual_urls.txt")
     ap.add_argument("--submissions", default="submissions.csv",
-                    help="Path to a CSV (Timestamp, URL, Submitted by, Note) of family-submitted listings. Default: submissions.csv")
+                    help="Path or URL to a CSV (Timestamp, URL, Submitted by, Note) of family-submitted "
+                         "listings. Default: submissions.csv. Override with env var KHOJ_SUBMISSIONS_URL.")
     args = ap.parse_args()
+
+    # Env var beats the CLI default so the workflow can point at the live Google Sheet
+    # without committing the URL to the repo.
+    submissions_path = os.environ.get("KHOJ_SUBMISSIONS_URL") or args.submissions
 
     if args.sanity_check:
         try:
@@ -396,24 +543,48 @@ def main():
 
     # Family-submitted URLs (manual_urls.txt + submissions.csv intake from a Google Sheet).
     # These bypass the hard filters — if someone took the time to submit it, surface it
-    # regardless of price/distance. Score still applies so it ranks alongside scraped listings.
-    extra_urls = _read_manual_urls(args.manual_urls) + _read_submissions_csv(args.submissions)
+    # regardless of price/distance. Craigslist URLs get the full parse+score pipeline;
+    # everything else falls back to OpenGraph metadata so AmberStudent / StreetEasy /
+    # PadMapper / etc. submissions at least show up as a basic card with title + link.
+    extra_urls = _read_manual_urls(args.manual_urls) + _read_submissions_csv(submissions_path)
     n_extra_new = n_extra_dup = 0
     for url in extra_urls:
         if url in seen_urls:
             n_extra_dup += 1
             continue
         seen_urls.add(url)
-        try:
-            html = fetch(url)
-        except (requests.RequestException, RuntimeError) as e:
-            print(f"[skip extra] {url}: {e}", file=sys.stderr)
-            continue
-        listing = parse_detail(html, {"url": url, "title": "", "price": None, "posted": None})
-        if listing is None:
-            print(f"[skip extra] {url}: could not parse", file=sys.stderr)
-            continue
-        listing.score = score(listing)
+        if "craigslist.org" in url:
+            try:
+                html = fetch(url)
+            except (requests.RequestException, RuntimeError) as e:
+                print(f"[skip extra] {url}: {e}", file=sys.stderr)
+                continue
+            listing = parse_detail(html, {"url": url, "title": "", "price": None, "posted": None})
+            if listing is None:
+                print(f"[skip extra] {url}: could not parse", file=sys.stderr)
+                continue
+            listing.score = score(listing)
+        else:
+            info = _fetch_external_listing(url)
+            if not info.get("title"):
+                print(f"[skip external] {url}: no metadata found", file=sys.stderr)
+                continue
+            lat, lng = info.get("lat"), info.get("lng")
+            dist = (geodesic(CAMPUS_COORDS, (lat, lng)).miles
+                    if lat is not None and lng is not None else None)
+            listing = Listing(
+                url=url,
+                title=info["title"],
+                price=info.get("price"),
+                bedrooms=info.get("bedrooms"),
+                neighborhood=info.get("neighborhood", "") or "",
+                address=info.get("address", "") or "",
+                lat=lat, lng=lng,
+                posted_date=datetime.now().date().isoformat(),  # submission date — we don't know original
+                description=info.get("description", "") or "",
+                distance_miles=dist,
+                score=0,  # external entries don't get a fit score
+            )
         results.append(listing)
         n_extra_new += 1
     if extra_urls:
