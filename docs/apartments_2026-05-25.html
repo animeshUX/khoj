@@ -634,7 +634,7 @@ body {
   .paper { max-width: none; }       /* full viewport width */
   .list-with-map {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(440px, 44vw, 820px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);  /* 50/50 split */
     gap: 2.5rem;
     align-items: start;
   }
@@ -838,11 +838,11 @@ body {
   <section class="stats">
     <div class="stat">
       <span class="stat-label">Listings</span>
-      <span class="stat-value">2</span>
+      <span class="stat-value">1</span>
     </div>
     <div class="stat">
       <span class="stat-label">Cheapest</span>
-      <span class="stat-value">$1,100</span>
+      <span class="stat-value">$1,159</span>
     </div>
     <div class="stat">
       <span class="stat-label">Closest</span>
@@ -855,7 +855,7 @@ body {
   </section>
 
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">2</span></button>
+    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">1</span></button>
     <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
   </nav>
 
@@ -919,11 +919,11 @@ body {
   </footer>
 </div>
 
-<script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-junior-1bed-loft-style-with/7936701356.html","title":"Junior 1Bed Loft Style with Great Closet Space & Natural Light","price":1159,"bedrooms":1,"neighborhood":"Prospect Heights","lat":40.679,"lng":-73.9644,"posted":"2026-05-25","postedRel":"today","description":"Junior 1Bed Loft Style with Great Closet Space & Natural Light 405 Sterling Pl #2A, Brooklyn, NY Junior 1 Bed | 1 Bath | Prospect Heights Charming top-floor junior 1-bedroom apartment located in the heart of Prospect Heights. This quiet back-facing unit offers a peaceful atmosphere, excellent natural light, and a loft-style layout with re\u2026","distance":1.5261487076251856,"walkMin":31,"score":35,"tags":[],"source":""},{"n":2,"url":"https://newjersey.craigslist.org/apa/d/jersey-city-huge-hi-ceiling-live-work/7934545621.html","title":"HUGE HI-CEILING LIVE/WORK LOFT - GROVE ST. PATH STATION - DOWNTOWN","price":1100,"bedrooms":0,"neighborhood":"JERSEY CITY","lat":40.719851,"lng":-74.038498,"posted":"2026-05-15","postedRel":"10 days ago","description":"HI CEILING WORK/LIVE LOFT - OPEN SPACE - DOWNTOWN EASY COMMUTE. 1/2 minute walk to Grove St. PATH station. 1 minute walk to Newark Avenue shopping district. Walk to restaurants, bars & bistros. Walk to Waterfront, supermarket, parks. Hardwood floors. Very quite and peaceful apartment. No upper floor apartment. 1 apartment per floor in 3 s\u2026","distance":3.281923091257976,"walkMin":66,"score":18,"tags":[],"source":""}]</script>
+<script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-junior-1bed-loft-style-with/7936701356.html","title":"Junior 1Bed Loft Style with Great Closet Space & Natural Light","price":1159,"bedrooms":1,"neighborhood":"Prospect Heights","lat":40.679,"lng":-73.9644,"posted":"2026-05-25","postedRel":"today","description":"Junior 1Bed Loft Style with Great Closet Space & Natural Light 405 Sterling Pl #2A, Brooklyn, NY Junior 1 Bed | 1 Bath | Prospect Heights Charming top-floor junior 1-bedroom apartment located in the heart of Prospect Heights. This quiet back-facing unit offers a peaceful atmosphere, excellent natural light, and a loft-style layout with re\u2026","distance":1.5261487076251856,"walkMin":31,"score":35,"tags":[],"source":""}]</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const MEDIANS = {"1": 1159, "0": 1100};
+const MEDIANS = {"1": 1159};
 const CAMPUS = [40.6929, -73.9870];
 
 (function () {
