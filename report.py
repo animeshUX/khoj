@@ -833,6 +833,34 @@ body {
   z-index: 1000 !important;
 }
 
+/* Distance-ring labels and subway-station tooltip styling */
+.ring-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--crimson);
+  background: var(--paper);
+  padding: 0.05rem 0.35rem;
+  border: 1px solid rgba(140, 32, 38, 0.45);
+  border-radius: 1px;
+  text-align: center;
+  white-space: nowrap;
+}
+.leaflet-tooltip.station-tooltip {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.25rem 0.5rem;
+  border-radius: 1px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.leaflet-tooltip.station-tooltip b { font-family: var(--serif-display); font-weight: 600; }
+.leaflet-tooltip.station-tooltip::before { display: none; }    /* hide arrow */
+
 /* ----------------------------------------------------------- Responsive */
 @media (max-width: 720px) {
   .paper { padding: 1.5rem 1rem 3rem; }
@@ -1019,6 +1047,10 @@ JS = r"""
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap', maxZoom: 19,
     }).addTo(mapInstance);
+
+    drawDistanceRings();
+    loadStaticLayers();  // commute zone + subway lines + stations (async, non-blocking)
+
     L.marker(CAMPUS, {
       icon: L.divIcon({ className: 'khoj-pin is-campus', iconSize: [20, 20] }),
       zIndexOffset: 1000,
@@ -1028,6 +1060,88 @@ JS = r"""
     const coords = PAYLOAD.filter(l => l.lat != null && l.lng != null).map(l => [l.lat, l.lng]);
     coords.push(CAMPUS);
     if (coords.length > 1) mapInstance.fitBounds(coords, { padding: [40, 40] });
+  }
+
+  // ------- Static layers: rings, commute zone, subway lines + stations --
+  const METERS_PER_MILE = 1609.344;
+  const RING_MILES = [1, 2, 3, 4];
+  // MTA service colors. We only color the lines that hit Jay St-MetroTech.
+  const ROUTE_COLOR = {
+    F: '#FF6319', A: '#2850AD', C: '#2850AD', R: '#FCCC0A',
+  };
+
+  function drawDistanceRings() {
+    RING_MILES.forEach(mi => {
+      L.circle(CAMPUS, {
+        radius: mi * METERS_PER_MILE,
+        color: '#8C2026', weight: 1, opacity: 0.32,
+        dashArray: '4 6', fill: false, interactive: false,
+      }).addTo(mapInstance);
+      // Label at 12 o'clock (north) on the ring
+      const dlat = (mi * METERS_PER_MILE) / 111000;
+      L.marker([CAMPUS[0] + dlat, CAMPUS[1]], {
+        icon: L.divIcon({
+          className: 'ring-label',
+          html: `${mi} mi`,
+          iconSize: [40, 14],
+          iconAnchor: [20, 7],
+        }),
+        interactive: false,
+        zIndexOffset: -500,
+      }).addTo(mapInstance);
+    });
+  }
+
+  function loadStaticLayers() {
+    // Order matters: zone first (bottom), then lines, then stations.
+    // After all layers add, bring listing markers to front.
+    fetch('data/commute-zone.geojson').then(r => r.ok && r.json()).then(geo => {
+      if (!geo || !mapInstance) return;
+      L.geoJSON(geo, {
+        style: {
+          color: '#8C2026', weight: 1.2, opacity: 0.6, dashArray: '6 4',
+          fillColor: '#8C2026', fillOpacity: 0.055,
+        },
+        interactive: false,
+      }).addTo(mapInstance).bringToBack();
+    }).catch(() => {});
+
+    fetch('data/subway-lines.geojson').then(r => r.ok && r.json()).then(geo => {
+      if (!geo || !mapInstance) return;
+      L.geoJSON(geo, {
+        style: { color: '#1A1612', weight: 1.4, opacity: 0.22 },
+        interactive: false,
+      }).addTo(mapInstance);
+      if (markerLayer) markerLayer.bringToFront();
+    }).catch(() => {});
+
+    fetch('data/subway-stations.geojson').then(r => r.ok && r.json()).then(geo => {
+      if (!geo || !mapInstance) return;
+      L.geoJSON(geo, {
+        pointToLayer: (feat, latlng) => {
+          const routes = (feat.properties.daytime_routes || '').split(' ').filter(Boolean);
+          // Find first colored route this station serves; otherwise muted gray
+          const color = routes.map(r => ROUTE_COLOR[r]).find(Boolean);
+          const isRelevant = !!color;
+          return L.circleMarker(latlng, {
+            radius: isRelevant ? 3.5 : 2,
+            color: '#fff', weight: 0.7,
+            fillColor: color || '#93857A',
+            fillOpacity: isRelevant ? 0.92 : 0.5,
+            interactive: isRelevant,
+          });
+        },
+        onEachFeature: (feat, layer) => {
+          if (layer.bindTooltip) {
+            layer.bindTooltip(
+              `<b>${esc(feat.properties.stop_name || '')}</b><br>${esc(feat.properties.daytime_routes || '—')}`,
+              { direction: 'top', className: 'station-tooltip' }
+            );
+          }
+        },
+      }).addTo(mapInstance);
+      if (markerLayer) markerLayer.bringToFront();
+    }).catch(() => {});
   }
 
   let markerLayer = null;
