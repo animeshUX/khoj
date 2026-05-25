@@ -34,8 +34,22 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px; display: grid;
 .btn { align-self: flex-start; margin-top: 6px; display: inline-block; padding: 7px 14px;
        background: #111; color: #fff; text-decoration: none; border-radius: 4px; font-size: 13px; }
 .btn:hover { background: #333; }
+footer { max-width: 1100px; margin: 8px auto 40px; padding: 20px 24px; border-top: 1px solid #e5e3dd;
+         color: #6b6b6b; font-size: 13px; }
+footer h3 { margin: 0 0 8px; color: #1a1a1a; font-size: 14px; font-weight: 600; }
+footer ul { margin: 0; padding-left: 18px; }
+footer a { color: #1a1a1a; }
 @media (max-width: 540px) { main { padding: 12px; } header { padding: 24px 16px 16px; } }
 """
+
+OTHER_SOURCES = [
+    ("AmberStudent — NYU listings", "https://amberstudent.com/places/search/new-york-university-1811221663188",
+     "managed student housing (per-room, booking-style)"),
+    ("StreetEasy — Brooklyn rentals", "https://streeteasy.com/for-rent/brooklyn/price:1200-3500%7Cbeds%3C=2",
+     "NYC's biggest rental marketplace; brokers + landlords"),
+    ("PadMapper — Brooklyn rentals", "https://www.padmapper.com/apartments/brooklyn-ny?box=-73.99,40.68,-73.97,40.71&maxRent=3500",
+     "aggregator across Craigslist, Zumper, Apartments.com — map view"),
+]
 
 
 def _tier(score: int) -> str:
@@ -63,6 +77,10 @@ def write_html(path: str, listings: "list[Listing]") -> None:
             f'<a class="btn" href="{e(l.url)}" target="_blank" rel="noopener">View on Craigslist →</a>'
             f'</article>'
         )
+    other_items = "".join(
+        f'<li><a href="{e(url)}" target="_blank" rel="noopener">{e(name)}</a> — {e(note)}</li>'
+        for name, url, note in OTHER_SOURCES
+    )
     body = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -72,6 +90,9 @@ def write_html(path: str, listings: "list[Listing]") -> None:
         f'<p class="meta">{len(listings)} listings · within 1.5 mi of 370 Jay St · '
         f'sorted by fit score · generated {date_str}</p></header>'
         f'<main>{"".join(cards) or "<p>No listings matched the filters.</p>"}</main>'
+        f'<footer><h3>Other places worth checking manually</h3><ul>{other_items}</ul>'
+        '<p>This report covers Craigslist only. The links above cover product types Craigslist misses '
+        '(managed student housing, broker listings, aggregators).</p></footer>'
         '</body></html>'
     )
     with open(path, "w", encoding="utf-8") as f:
