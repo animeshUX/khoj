@@ -157,14 +157,13 @@ body {
   gap: 0;
   border-bottom: 2px solid var(--ink);
   margin-bottom: 1.25rem;
-  overflow-x: auto;
 }
 .tab {
   background: transparent;
   border: 0;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
-  padding: 0.7rem 1.3rem 0.7rem 0;
+  padding: 0.7rem 1.4rem 0.7rem 1.4rem;
   font-family: var(--mono);
   font-size: var(--type-small);
   font-weight: 500;
@@ -173,11 +172,16 @@ body {
   color: var(--ink-soft);
   cursor: pointer;
   white-space: nowrap;
-  transition: color 120ms ease;
+  transition: color 120ms ease, background 120ms ease;
 }
-.tab + .tab { padding-left: 1.5rem; }
-.tab:hover { color: var(--ink); }
+.tab:first-child { padding-left: 0; }
+.tab:hover { color: var(--ink); background: rgba(140, 32, 38, 0.045); }
 .tab.active { color: var(--ink); border-bottom-color: var(--crimson); }
+.tab:focus-visible {
+  outline: 2px solid var(--crimson);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
 .tab-count {
   display: inline-block;
   font-size: var(--type-micro);
@@ -223,11 +227,15 @@ body {
   transition: all 100ms ease;
   border-radius: 1px;
 }
-.chip:hover { background: var(--paper-warm); color: var(--ink); }
+.chip:hover { background: var(--paper-warm); color: var(--ink); border-color: var(--ink-soft); }
 .chip.active {
   background: var(--ink);
   color: var(--paper);
   border-color: var(--ink);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--crimson);
+  outline-offset: 2px;
 }
 .sort-wrap {
   display: flex;
@@ -251,7 +259,10 @@ body {
   font-size: var(--type-mono);
   color: var(--ink);
   cursor: pointer;
+  transition: border-color 120ms ease;
 }
+#sort:hover { border-color: var(--ink); }
+#sort:focus-visible { outline: 2px solid var(--crimson); outline-offset: 2px; }
 
 /* ----------------------------------------------------------------- Views */
 .view { display: none; }
@@ -573,6 +584,25 @@ body {
 .list-column { min-width: 0; }
 .map-panel { display: none; }          /* hidden until >=1100px viewport */
 
+.map-panel-caption {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  padding: 0.55rem 0.25rem 0.65rem;
+  border-top: 2px solid var(--ink);
+}
+
+/* Mobile-only inline map (shown when right rail is hidden) */
+.map-inline { display: block; margin: 2rem 0; }
+#map-mobile {
+  width: 100%;
+  height: 420px;
+  border: 1px solid var(--rule);
+  background: var(--paper-tint);
+}
+
 @media (min-width: 1100px) {
   .paper { max-width: 1440px; }       /* widen so list + map both breathe */
   .list-with-map {
@@ -589,15 +619,6 @@ body {
     min-height: 520px;
     max-height: 840px;
   }
-  .map-panel-caption {
-    font-family: var(--mono);
-    font-size: var(--type-micro);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-mute);
-    padding: 0.55rem 0.25rem 0.65rem;
-    border-top: 2px solid var(--ink);
-  }
   #map-side {
     width: 100%;
     height: calc(100% - 2.4rem);
@@ -605,16 +626,30 @@ body {
     background: var(--paper-tint);
     box-shadow: 0 2px 14px rgba(26, 22, 18, 0.08);
   }
-  /* On desktop the persistent map replaces the Map tab */
-  .tab[data-tab="map"] { display: none; }
-  #view-map { display: none !important; }
+  /* Desktop has the sticky right-rail map; hide the inline one */
+  .map-inline { display: none; }
 }
 
-/* Linked entry ↔ pin selection state */
-.entry { cursor: pointer; }
-.entry.is-active { background: rgba(140, 32, 38, 0.05); }
+/* Linked entry ↔ pin selection state + clickability affordance */
+.entry { cursor: pointer; transition: background 140ms ease; position: relative; }
+.entry:hover { background: rgba(140, 32, 38, 0.025); }
+.entry:hover .entry-title a { color: var(--crimson); }
+.entry.is-active { background: rgba(140, 32, 38, 0.06); }
+.entry.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 1rem; bottom: 1rem;
+  width: 3px;
+  background: var(--crimson);
+}
 .entry.is-active .entry-num,
 .entry.is-active .entry-num-meta { color: var(--crimson); }
+
+/* Action buttons — focus ring for keyboard nav, harden the affordance */
+.act:focus-visible {
+  outline: 2px solid var(--crimson);
+  outline-offset: 2px;
+}
 
 /* ----------------------------------------------------------------- Map (Leaflet) */
 #map, #map-side {
@@ -700,7 +735,6 @@ body {
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">1</span></button>
     <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
-    <button class="tab" data-tab="map" role="tab">Map</button>
   </nav>
 
   <section class="controls" id="controls">
@@ -737,9 +771,11 @@ body {
         <p class="empty" id="shortlist-empty" style="display:none">No starred listings yet. Star ★ entries in the Inbox to build a shortlist.</p>
       </section>
 
-      <section class="view" id="view-map">
-        <div id="map"></div>
-      </section>
+      <!-- view-map removed: map is now persistent on the right (desktop) or inline below the list (mobile) -->
+      <aside class="map-inline" id="map-inline">
+        <div class="map-panel-caption">listings near 370 jay st</div>
+        <div id="map-mobile"></div>
+      </aside>
     </main>
     <aside class="map-panel" id="map-panel">
       <div class="map-panel-caption">listings near 370 Jay St — hover an entry to highlight its pin</div>
@@ -908,10 +944,8 @@ const CAMPUS = [40.6929, -73.9870];
         el.innerHTML = list.map(entryHTML).join('');
         empty.style.display = 'none';
       }
-    } else if (state.tab === 'map') {
-      mountMap('map');
     }
-    // Keep the persistent right-side map's markers in sync with star/hide state
+    // Keep the live map's markers in sync with star/hide state on every render
     refreshMapMarkers();
   }
 
@@ -1075,13 +1109,15 @@ const CAMPUS = [40.6929, -73.9870];
     if (entry && entry.dataset.url) setActive(entry.dataset.url);
   });
 
-  // ------- Initial paint + persistent map mount -------------------------
+  // ------- Initial paint + map mount ------------------------------------
   render();
-  // Mount the persistent right-rail map on desktop. The MAP tab is hidden
-  // at >=1100px (CSS), so on desktop this is the only map. On smaller
-  // viewports, #map-side is display:none and we fall back to the tab.
-  if (document.getElementById('map-side') && getComputedStyle(document.getElementById('map-panel')).display !== 'none') {
+  // Desktop: sticky right-rail map (#map-side). Mobile: inline map below the
+  // list (#map-mobile). Whichever is visible wins; the other is display:none.
+  const sidePanel = document.getElementById('map-panel');
+  if (sidePanel && getComputedStyle(sidePanel).display !== 'none') {
     mountMap('map-side');
+  } else if (document.getElementById('map-mobile')) {
+    mountMap('map-mobile');
   }
 })();
 
