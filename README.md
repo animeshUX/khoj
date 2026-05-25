@@ -45,10 +45,10 @@ If `--sanity-check` returns 403, run `python scraper.py --diagnose` to see which
 ## Filtering & scoring
 
 **Hard filters (drop if fails):**
-- Price $1,200–$3,500
+- Price **$800–$1,500** (student budget)
 - Studio / 1BR / 2BR only
 - Posted within 14 days
-- Within 1.5 mi of 370 Jay St (NYU Tandon, Brooklyn)
+- Within **~4 mi** of 370 Jay St — rough proxy for a 30-min commute via F/A/C/R
 
 **Score (0–100):**
 - Distance: 40 pts (linear, closer better)

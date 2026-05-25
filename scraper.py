@@ -23,23 +23,25 @@ from report import write_html
 
 # 370 Jay St, Brooklyn, NY 11201 — NYU Tandon
 CAMPUS_COORDS = (40.6929, -73.9870)
-# Pre-filter on CL side: 2-mile radius from 370 Jay St (zip 11201). The 1.5-mile geodesic
-# filter in passes_hard_filters() trims further. Without this, we waste ~80% of fetches
-# on listings far from campus.
+# Pre-filter on CL side: 5-mile radius from 370 Jay St (zip 11201) — covers most
+# 30-min-commute neighborhoods accessible from the F/A/C/R lines that converge at
+# Jay St-MetroTech. The 4-mile geodesic filter in passes_hard_filters() trims
+# further, while still being permissive enough for student-budget options in
+# further-out Brooklyn (Sunset Park, deeper Bushwick, parts of Crown Heights).
 SEARCH_URL = (
     "https://newyork.craigslist.org/search/brk/apa"
-    "?postal=11201&search_distance=2"
+    "?postal=11201&search_distance=5"
 )
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 REQUEST_DELAY_SEC = 1.5
 HTTP_TIMEOUT = 25
 
-MIN_PRICE = 1200
-MAX_PRICE = 3500
-MAX_DISTANCE_MILES = 1.5
+MIN_PRICE = 800
+MAX_PRICE = 1500
+MAX_DISTANCE_MILES = 4.0   # rough proxy for ~30-min commute via F/A/C/R + walk
 MAX_AGE_DAYS = 14
 ALLOWED_BEDROOMS = {0, 1, 2}  # studio == 0
-TARGET_LISTINGS = 100
+TARGET_LISTINGS = 200          # wider radius → more candidates to filter
 
 # Scoring keyword groups: (compiled regex, points awarded once if matched)
 KEYWORD_RULES = [
