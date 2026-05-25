@@ -630,7 +630,7 @@ def main():
             )
         results.append(listing)
         n_extra_new += 1
-    if extra_urls:
+    if extra_items:
         print(f"Submitted URLs: {n_extra_new} added, {n_extra_dup} already in scrape results")
 
     results.sort(key=lambda l: l.score, reverse=True)
