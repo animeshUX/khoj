@@ -30,6 +30,10 @@ python scraper.py --diagnose        # probe endpoints when --sanity-check 403s
 
 To add a manually-submitted URL: append to `manual_urls.txt` (one per line, `#` comments OK, optional ` | note` suffix). Commit and push. Action picks it up on the next scheduled run or on demand from the Actions tab.
 
+## DO NOT — privacy + scope
+
+- **Never copy the Observatory design system into this repo.** The Observatory DS at `~/Development/observatory/field-data/` is private; this Khoj repo is public (GitHub Pages serves it). Don't vendor `dist/current/`, `tokens.css`, `patterns/`, or anything else from that directory into `docs/` or anywhere else that ships to GitHub. If a session needs styling inspiration, write fresh CSS using free Google Fonts (Fraunces, etc.) and Khoj-specific tokens — don't re-export Animesh's private DS by accident.
+
 ## DO NOT
 
 - **Rebuild the Streamlit/SQLite/Sheets layers.** They existed and were deleted. The simplicity is the feature. If submission volume meaningfully grows, revisit by reviewing the parking-lot branches below — don't start over.
