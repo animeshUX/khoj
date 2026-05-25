@@ -1,0 +1,298 @@
+#!/usr/bin/env python3
+"""Scrape Craigslist Brooklyn apartments and score them for an NYU Tandon student.
+
+Run: `python scraper.py`  (see README for options)
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import re
+import sys
+import time
+from dataclasses import dataclass, asdict
+from datetime import datetime, timezone
+from urllib.parse import urlencode
+
+import requests
+from bs4 import BeautifulSoup
+from geopy.distance import geodesic
+
+# 370 Jay St, Brooklyn, NY 11201 — NYU Tandon
+CAMPUS_COORDS = (40.6929, -73.9870)
+SEARCH_URL = "https://newyork.craigslist.org/search/brk/apa"
+USER_AGENT = "apartment-finder/0.1 (personal, polite)"
+REQUEST_DELAY_SEC = 1.5
+HTTP_TIMEOUT = 25
+
+MIN_PRICE = 1200
+MAX_PRICE = 3500
+MAX_DISTANCE_MILES = 1.5
+MAX_AGE_DAYS = 14
+ALLOWED_BEDROOMS = {0, 1, 2}  # studio == 0
+TARGET_LISTINGS = 100
+
+# Scoring keyword groups: (compiled regex, points awarded once if matched)
+KEYWORD_RULES = [
+    (re.compile(r"\b(students?\s+welcome|nyu|student[- ]friendly|grad\s+student)\b", re.I), 15),
+    (re.compile(r"\b(no\s*guarantor(\s+needed|\s+required)?|guarantor\s+(not\s+required|optional|flexible)|flexible\s+(lease|terms))\b", re.I), 10),
+    (re.compile(r"\bfurnished\b", re.I), 5),
+    (re.compile(r"\b(utilities\s+included|all\s+utilities|util\.?\s*incl)\b", re.I), 5),
+    (re.compile(r"\b[FACR](?:\s*[/&,]\s*[FACR])*\s*(?:train|line|subway)\b", re.I), 5),
+]
+STRICT_NO_PETS = re.compile(r"strict[^.\n]{0,40}no\s*pets|no\s*pets[^.\n]{0,40}strict", re.I)
+
+session = requests.Session()
+session.headers.update({
+    "User-Agent": USER_AGENT,
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+})
+
+
+@dataclass
+class Listing:
+    url: str
+    title: str
+    price: int | None
+    bedrooms: int | None
+    neighborhood: str
+    address: str
+    lat: float | None
+    lng: float | None
+    posted_date: str   # ISO date, YYYY-MM-DD
+    description: str
+    distance_miles: float | None
+    score: int = 0
+
+
+def fetch(url: str) -> str:
+    """GET url with the configured delay and headers; raise on non-2xx."""
+    time.sleep(REQUEST_DELAY_SEC)
+    resp = session.get(url, timeout=HTTP_TIMEOUT)
+    if resp.status_code == 403:
+        raise RuntimeError(
+            f"Craigslist returned 403 for {url}. They may be blocking this IP — try a different network."
+        )
+    resp.raise_for_status()
+    return resp.text
+
+
+def iter_search_items(max_listings: int):
+    """Yield BeautifulSoup <item> elements from Craigslist's RSS search feed."""
+    start = 0
+    yielded = 0
+    while yielded < max_listings:
+        url = f"{SEARCH_URL}?{urlencode({'format': 'rss', 's': start})}"
+        try:
+            xml = fetch(url)
+        except (requests.RequestException, RuntimeError) as e:
+            print(f"[warn] search page {start} failed: {e}", file=sys.stderr)
+            return
+        soup = BeautifulSoup(xml, "xml")
+        items = soup.find_all("item")
+        if not items:
+            return
+        for item in items:
+            yield item
+            yielded += 1
+            if yielded >= max_listings:
+                return
+        start += len(items)
+
+
+def _text(el) -> str:
+    return (el.text or "").strip() if el is not None else ""
+
+
+def parse_summary(item) -> dict | None:
+    """Extract url, title, raw price, and posted datetime from one RSS <item>."""
+    url = _text(item.find("link"))
+    title = _text(item.find("title"))
+    if not url or not title:
+        return None
+    # <dc:date> via namespace handling
+    date_el = item.find("date") or item.find(lambda t: t.name and t.name.endswith("date"))
+    posted = None
+    if date_el and date_el.text:
+        try:
+            posted = datetime.fromisoformat(date_el.text.strip().replace("Z", "+00:00"))
+        except ValueError:
+            posted = None
+    price_m = re.search(r"\$([\d,]+)", title)
+    price = int(price_m.group(1).replace(",", "")) if price_m else None
+    return {"url": url, "title": title, "price": price, "posted": posted}
+
+
+def parse_detail(html: str, summary: dict) -> Listing | None:
+    """Parse a Craigslist posting page into a Listing. Returns None if essential fields missing."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    title = _text(soup.find("span", id="titletextonly")) or summary["title"]
+
+    price = summary["price"]
+    if price is None:
+        price_el = soup.find("span", class_="price")
+        if price_el:
+            m = re.search(r"\$([\d,]+)", price_el.text)
+            if m:
+                price = int(m.group(1).replace(",", ""))
+
+    attrs_text = " ".join(_text(b) for b in soup.find_all("p", class_="attrgroup")).lower()
+    m = re.search(r"(\d+)\s*br", attrs_text)
+    if m:
+        bedrooms = int(m.group(1))
+    elif "studio" in attrs_text or re.search(r"\bstudio\b", title, re.I):
+        bedrooms = 0
+    else:
+        bedrooms = None
+
+    hood_small = soup.select_one("span.postingtitletext small")
+    neighborhood = hood_small.text.strip(" ()") if hood_small else ""
+    address = _text(soup.find("div", class_="mapaddress"))
+
+    lat = lng = None
+    mapbox = soup.find("div", id="map") or soup.find("div", class_="mapbox")
+    if mapbox:
+        try:
+            lat = float(mapbox.get("data-latitude"))
+            lng = float(mapbox.get("data-longitude"))
+        except (TypeError, ValueError):
+            pass
+
+    posted = summary["posted"]
+    if posted is None:
+        t_el = soup.find("time")
+        if t_el and t_el.get("datetime"):
+            try:
+                posted = datetime.fromisoformat(t_el["datetime"].replace("Z", "+00:00"))
+            except ValueError:
+                pass
+    posted_date = posted.date().isoformat() if posted else ""
+
+    description = ""
+    body_el = soup.find("section", id="postingbody")
+    if body_el:
+        for noise in body_el.find_all("div", class_="print-information"):
+            noise.decompose()
+        description = re.sub(r"\s+", " ", body_el.get_text(" ", strip=True)).strip()
+        description = re.sub(r"^QR Code Link to This Post\s*", "", description)
+
+    distance = geodesic(CAMPUS_COORDS, (lat, lng)).miles if lat is not None and lng is not None else None
+
+    return Listing(
+        url=summary["url"], title=title, price=price, bedrooms=bedrooms,
+        neighborhood=neighborhood, address=address, lat=lat, lng=lng,
+        posted_date=posted_date, description=description, distance_miles=distance,
+    )
+
+
+def passes_hard_filters(l: Listing) -> bool:
+    """Hard filters: price band, bedroom type, recency, distance."""
+    if l.price is None or not (MIN_PRICE <= l.price <= MAX_PRICE):
+        return False
+    if l.bedrooms is None or l.bedrooms not in ALLOWED_BEDROOMS:
+        return False
+    if not l.posted_date:
+        return False
+    age_days = (datetime.now(timezone.utc).date() - datetime.fromisoformat(l.posted_date).date()).days
+    if age_days > MAX_AGE_DAYS:
+        return False
+    if l.distance_miles is None or l.distance_miles > MAX_DISTANCE_MILES:
+        return False
+    return True
+
+
+def score(l: Listing) -> int:
+    """0–100 score; higher = better fit. See README for breakdown."""
+    pts = 0
+    # Distance: 40 pts at 0 mi, 0 at MAX_DISTANCE_MILES, linear in between
+    pts += round(40 * max(0.0, 1 - (l.distance_miles or MAX_DISTANCE_MILES) / MAX_DISTANCE_MILES))
+    # Price: 20 pts at MIN_PRICE, 0 at MAX_PRICE, linear
+    if l.price is not None:
+        pts += round(20 * max(0.0, 1 - (l.price - MIN_PRICE) / (MAX_PRICE - MIN_PRICE)))
+    # Keyword bonuses (title + description)
+    haystack = f"{l.title}\n{l.description}"
+    for pattern, bonus in KEYWORD_RULES:
+        if pattern.search(haystack):
+            pts += bonus
+    # Penalty: only if "no pets" appears alongside "strict"
+    if STRICT_NO_PETS.search(haystack):
+        pts -= 5
+    return max(0, min(100, pts))
+
+
+CSV_COLUMNS = ["score", "price", "bedrooms", "neighborhood", "distance_miles",
+               "posted_date", "title", "url", "description"]
+
+
+def write_csv(path: str, listings: list[Listing]) -> None:
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
+        w.writeheader()
+        for l in listings:
+            row = asdict(l)
+            row["distance_miles"] = f"{l.distance_miles:.2f}" if l.distance_miles is not None else ""
+            row["description"] = (l.description or "")[:200]
+            w.writerow({k: row.get(k, "") for k in CSV_COLUMNS})
+
+
+def print_top(listings: list[Listing], n: int = 10) -> None:
+    print(f"\nTop {min(n, len(listings))} of {len(listings)} listings\n" + "-" * 72)
+    for l in listings[:n]:
+        bed = "Studio" if l.bedrooms == 0 else f"{l.bedrooms}BR"
+        dist = f"{l.distance_miles:.2f}mi" if l.distance_miles is not None else "?"
+        print(f"[{l.score:3d}] ${l.price}  {bed:6s} {dist:6s} {l.neighborhood[:24]:24s} {l.posted_date}")
+        print(f"      {l.title[:90]}")
+        print(f"      {l.url}\n")
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Scrape & score Craigslist Brooklyn apartments near NYU Tandon.")
+    ap.add_argument("--max-listings", type=int, default=TARGET_LISTINGS,
+                    help=f"Max listings to fetch from search (default {TARGET_LISTINGS}).")
+    ap.add_argument("--out", default=None, help="Output CSV path (default apartments_YYYY-MM-DD.csv).")
+    ap.add_argument("--sanity-check", action="store_true",
+                    help="Fetch the first search page and exit — verifies network/IP isn't blocked.")
+    args = ap.parse_args()
+
+    if args.sanity_check:
+        try:
+            xml = fetch(f"{SEARCH_URL}?format=rss&s=0")
+            items = BeautifulSoup(xml, "xml").find_all("item")
+            print(f"OK: search returned {len(items)} items from first page.")
+        except Exception as e:
+            print(f"FAIL: {e}", file=sys.stderr)
+            sys.exit(1)
+        return
+
+    print(f"Scraping up to {args.max_listings} listings from {SEARCH_URL} ...")
+    results: list[Listing] = []
+    seen_urls: set[str] = set()
+    for item in iter_search_items(args.max_listings):
+        summary = parse_summary(item)
+        if not summary or summary["url"] in seen_urls:
+            continue
+        seen_urls.add(summary["url"])
+        try:
+            html = fetch(summary["url"])
+        except (requests.RequestException, RuntimeError) as e:
+            print(f"[skip] {summary['url']}: {e}", file=sys.stderr)
+            continue
+        listing = parse_detail(html, summary)
+        if listing is None:
+            continue
+        if not passes_hard_filters(listing):
+            continue
+        listing.score = score(listing)
+        results.append(listing)
+
+    results.sort(key=lambda l: l.score, reverse=True)
+    out_path = args.out or f"apartments_{datetime.now().date().isoformat()}.csv"
+    write_csv(out_path, results)
+    print(f"\nWrote {len(results)} listings to {out_path}")
+    print_top(results, 10)
+
+
+if __name__ == "__main__":
+    main()
