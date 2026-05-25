@@ -312,6 +312,14 @@ body {
   margin-top: -0.15rem;
 }
 .entry-num-meta.fresh { color: var(--crimson); }
+.entry-num-meta.external {
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+}
+.entry.is-external .entry-num { color: var(--gold); }
+.entry.is-external .mm-line { stroke: var(--gold); opacity: 0.5; }
+.entry.is-external .mm-listing { fill: var(--gold); }
 
 /* Per-row mini-map: stylized A-to-B diagram, listing -> NYU Tandon (370 Jay) */
 .mini-map {
@@ -641,15 +649,15 @@ body {
   <section class="stats">
     <div class="stat">
       <span class="stat-label">Listings</span>
-      <span class="stat-value">1</span>
+      <span class="stat-value">3</span>
     </div>
     <div class="stat">
       <span class="stat-label">Cheapest</span>
-      <span class="stat-value">$1,100</span>
+      <span class="stat-value">$1,159</span>
     </div>
     <div class="stat">
       <span class="stat-label">Closest</span>
-      <span class="stat-value">3.28 <span style="font-size:0.7em;color:var(--ink-mute);">mi</span></span>
+      <span class="stat-value">1.53 <span style="font-size:0.7em;color:var(--ink-mute);">mi</span></span>
     </div>
     <div class="stat">
       <span class="stat-label">Shortlist</span>
@@ -658,7 +666,7 @@ body {
   </section>
 
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">1</span></button>
+    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">3</span></button>
     <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
     <button class="tab" data-tab="map" role="tab">Map</button>
   </nav>
@@ -707,11 +715,11 @@ body {
   </footer>
 </div>
 
-<script id="payload" type="application/json">[{"n":1,"url":"https://newjersey.craigslist.org/apa/d/jersey-city-huge-hi-ceiling-live-work/7934545621.html","title":"HUGE HI-CEILING LIVE/WORK LOFT - GROVE ST. PATH STATION - DOWNTOWN","price":1100,"bedrooms":0,"neighborhood":"JERSEY CITY","lat":40.719851,"lng":-74.038498,"posted":"2026-05-15","postedRel":"10 days ago","description":"HI CEILING WORK/LIVE LOFT - OPEN SPACE - DOWNTOWN EASY COMMUTE. 1/2 minute walk to Grove St. PATH station. 1 minute walk to Newark Avenue shopping district. Walk to restaurants, bars & bistros. Walk to Waterfront, supermarket, parks. Hardwood floors. Very quite and peaceful apartment. No upper floor apartment. 1 apartment per floor in 3 s\u2026","distance":3.281923091257976,"walkMin":66,"score":18,"tags":[],"mapSvg":"<svg class=\"mini-map\" viewBox=\"-60 -60 120 120\" width=\"118\" height=\"118\" aria-hidden=\"true\"><line x1=\"-58\" y1=\"0\" x2=\"58\" y2=\"0\" class=\"mm-axis\"/><line x1=\"0\" y1=\"-58\" x2=\"0\" y2=\"58\" class=\"mm-axis\"/><circle cx=\"0\" cy=\"0\" r=\"13\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"26\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"39\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"52\" class=\"mm-ring\"/><line x1=\"0\" y1=\"0\" x2=\"-35.15\" y2=\"-24.18\" class=\"mm-line\"/><text x=\"-12.47\" y=\"-17.50\" class=\"mm-distance\">3.3 mi<\/text><circle cx=\"0\" cy=\"0\" r=\"4\" class=\"mm-campus\"><title>NYU Tandon \u00b7 370 Jay St<\/title><\/circle><circle cx=\"-35.15\" cy=\"-24.18\" r=\"3.5\" class=\"mm-listing\"><title>This listing<\/title><\/circle><text x=\"0\" y=\"-49\" class=\"mm-cardinal\">N<\/text><\/svg>"}]</script>
+<script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-junior-1bed-loft-style-with/7936701356.html","title":"Junior 1Bed Loft Style with Great Closet Space & Natural Light","price":1159,"bedrooms":1,"neighborhood":"Prospect Heights","lat":40.679,"lng":-73.9644,"posted":"2026-05-25","postedRel":"today","description":"Junior 1Bed Loft Style with Great Closet Space & Natural Light 405 Sterling Pl #2A, Brooklyn, NY Junior 1 Bed | 1 Bath | Prospect Heights Charming top-floor junior 1-bedroom apartment located in the heart of Prospect Heights. This quiet back-facing unit offers a peaceful atmosphere, excellent natural light, and a loft-style layout with re\u2026","distance":1.5261487076251856,"walkMin":31,"score":35,"tags":[],"mapSvg":"<svg class=\"mini-map\" viewBox=\"-60 -60 120 120\" width=\"118\" height=\"118\" aria-hidden=\"true\"><line x1=\"-58\" y1=\"0\" x2=\"58\" y2=\"0\" class=\"mm-axis\"/><line x1=\"0\" y1=\"-58\" x2=\"0\" y2=\"58\" class=\"mm-axis\"/><circle cx=\"0\" cy=\"0\" r=\"13\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"26\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"39\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"52\" class=\"mm-ring\"/><line x1=\"0\" y1=\"0\" x2=\"15.42\" y2=\"12.47\" class=\"mm-line\"/><text x=\"2.05\" y=\"15.23\" class=\"mm-distance\">1.5 mi<\/text><circle cx=\"0\" cy=\"0\" r=\"4\" class=\"mm-campus\"><title>NYU Tandon \u00b7 370 Jay St<\/title><\/circle><circle cx=\"15.42\" cy=\"12.47\" r=\"3.5\" class=\"mm-listing\"><title>This listing<\/title><\/circle><text x=\"0\" y=\"-49\" class=\"mm-cardinal\">N<\/text><\/svg>","source":""},{"n":2,"url":"https://amberstudent.com/places/141-hart-st-brooklyn-2305121841186","title":"141 Hart St Brooklyn Student Apartments | Amber","price":1450,"bedrooms":null,"neighborhood":"Kings County","lat":40.69369229999999,"lng":-73.9455473,"posted":"2026-05-25","postedRel":"today","description":"141 Hart St Brooklyn near Pratt Institute offers furnished rooms with Wi-Fi, AC, rooftop, and backyard. It is ideal for students seeking comfort and connectivity.","distance":2.1778138545671486,"walkMin":44,"score":0,"tags":["Furnished"],"mapSvg":"<svg class=\"mini-map\" viewBox=\"-60 -60 120 120\" width=\"118\" height=\"118\" aria-hidden=\"true\"><line x1=\"-58\" y1=\"0\" x2=\"58\" y2=\"0\" class=\"mm-axis\"/><line x1=\"0\" y1=\"-58\" x2=\"0\" y2=\"58\" class=\"mm-axis\"/><circle cx=\"0\" cy=\"0\" r=\"13\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"26\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"39\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"52\" class=\"mm-ring\"/><line x1=\"0\" y1=\"0\" x2=\"28.29\" y2=\"-0.71\" class=\"mm-line\"/><text x=\"14.37\" y=\"10.64\" class=\"mm-distance\">2.2 mi<\/text><circle cx=\"0\" cy=\"0\" r=\"4\" class=\"mm-campus\"><title>NYU Tandon \u00b7 370 Jay St<\/title><\/circle><circle cx=\"28.29\" cy=\"-0.71\" r=\"3.5\" class=\"mm-listing\"><title>This listing<\/title><\/circle><text x=\"0\" y=\"-49\" class=\"mm-cardinal\">N<\/text><\/svg>","source":"amberstudent.com"},{"n":3,"url":"https://streeteasy.com/building/354-93-street-brooklyn/1","title":"354 93rd Street #1 in Fort Hamilton, Brooklyn | StreetEasy","price":1395,"bedrooms":0,"neighborhood":"Brooklyn","lat":40.61784,"lng":-74.03165,"posted":"2026-05-25","postedRel":"today","description":"354 93rd Street, Brooklyn, Ny, 11209: This 1 room studio apartment is located in a well-kept, prewar building in Bay Ridge. Enjoy a wide variety of nearby shops and .","distance":5.685966048632335,"walkMin":114,"score":0,"tags":[],"mapSvg":"<svg class=\"mini-map\" viewBox=\"-60 -60 120 120\" width=\"118\" height=\"118\" aria-hidden=\"true\"><line x1=\"-58\" y1=\"0\" x2=\"58\" y2=\"0\" class=\"mm-axis\"/><line x1=\"0\" y1=\"-58\" x2=\"0\" y2=\"58\" class=\"mm-axis\"/><circle cx=\"0\" cy=\"0\" r=\"13\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"26\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"39\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"52\" class=\"mm-ring\"/><line x1=\"0\" y1=\"0\" x2=\"-22.27\" y2=\"49.20\" class=\"mm-line\"/><text x=\"-17.12\" y=\"23.89\" class=\"mm-distance\">5.7 mi<\/text><circle cx=\"0\" cy=\"0\" r=\"4\" class=\"mm-campus\"><title>NYU Tandon \u00b7 370 Jay St<\/title><\/circle><circle cx=\"-22.27\" cy=\"49.20\" r=\"3.5\" class=\"mm-listing\"><title>This listing<\/title><\/circle><text x=\"0\" y=\"-49\" class=\"mm-cardinal\">N<\/text><\/svg>","source":"streeteasy.com"}]</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const MEDIANS = {"0": 1100};
+const MEDIANS = {"1": 1159, "0": 1395};
 const CAMPUS = [40.6929, -73.9870];
 
 (function () {
@@ -779,21 +787,27 @@ const CAMPUS = [40.6929, -73.9870];
     const starred = state.starred.has(l.url);
     const hidden = state.hidden.has(l.url);
     const note = state.notes[l.url];
+    const isExternal = !!l.source;       // non-Craigslist submissions
     const bedLabel = l.bedrooms === 0 ? 'Studio' : (l.bedrooms != null ? l.bedrooms + ' BR' : '?');
     const walking = l.walkMin ? `${l.walkMin} min walk` : '';
     const distance = l.distance != null ? `${l.distance.toFixed(2)} mi` : '?';
     const fresh = freshnessFor(l.posted);
     const numClass = 'entry-num ' + (l.score >= 40 ? 'score-high' : l.score >= 20 ? 'score-mid' : '');
+    // Eyebrow label under the serial number: source domain for external,
+    // Fresh/Score for Craigslist scrapes.
+    const numMetaLabel = isExternal ? l.source : (fresh ? 'Fresh' : 'Score ' + l.score);
     const tags = (l.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
     const anomaly = priceAnomaly(l.price, l.bedrooms);
+    const ctaLabel = isExternal ? `View on ${esc(l.source)} →` : 'View on Craigslist →';
+    const datePrefix = isExternal ? 'submitted ' : 'posted ';
 
     return `
-      <li class="entry${hidden ? ' is-hidden' : ''}${starred ? ' is-starred' : ''}" data-url="${esc(l.url)}">
+      <li class="entry${hidden ? ' is-hidden' : ''}${starred ? ' is-starred' : ''}${isExternal ? ' is-external' : ''}" data-url="${esc(l.url)}">
         <div class="${numClass}">
           ${pad(l.n)}
-          <div class="entry-num-meta${fresh ? ' fresh' : ''}">${fresh ? 'Fresh' : 'Score ' + l.score}</div>
+          <div class="entry-num-meta${fresh && !isExternal ? ' fresh' : ''}${isExternal ? ' external' : ''}">${esc(numMetaLabel)}</div>
           ${l.mapSvg || ''}
-          <div class="mm-caption${starred ? ' is-starred' : ''}">listing → 370 jay</div>
+          ${l.mapSvg ? `<div class="mm-caption${starred ? ' is-starred' : ''}">listing → 370 jay</div>` : ''}
         </div>
         <div class="entry-body">
           <div class="entry-meta">
@@ -801,7 +815,7 @@ const CAMPUS = [40.6929, -73.9870];
             ${esc(bedLabel)}
             <span class="sep">·</span>${esc(distance)}${walking ? ' (' + esc(walking) + ')' : ''}
             <span class="sep">·</span>${esc(l.neighborhood || 'Brooklyn')}
-            <span class="sep">·</span>posted ${esc(l.postedRel || '?')}
+            <span class="sep">·</span>${datePrefix}${esc(l.postedRel || '?')}
             ${anomaly ? '<span class="sep">·</span>' + anomaly : ''}
           </div>
           <h2 class="entry-title"><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></h2>
@@ -809,7 +823,7 @@ const CAMPUS = [40.6929, -73.9870];
           ${tags ? `<div class="entry-tags">${tags}</div>` : ''}
           ${note ? `<div class="note-display">${esc(note)}</div>` : ''}
           <div class="entry-actions">
-            <a class="act act-primary" href="${esc(l.url)}" target="_blank" rel="noopener">View on Craigslist →</a>
+            <a class="act act-primary" href="${esc(l.url)}" target="_blank" rel="noopener">${ctaLabel}</a>
             <button class="act act-star${starred ? ' starred' : ''}" data-act="star">★ ${starred ? 'Starred' : 'Star'}</button>
             <button class="act" data-act="hide">${hidden ? 'Restore' : 'Hide'}</button>
             <button class="act" data-act="note">${note ? '✎ Edit Note' : '✎ Note'}</button>
