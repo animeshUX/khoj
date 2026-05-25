@@ -314,6 +314,8 @@ def main():
                     help="Fetch the first search page and exit — verifies network/IP isn't blocked.")
     ap.add_argument("--diagnose", action="store_true",
                     help="Probe multiple Craigslist endpoints to identify what's blocked. Run this when --sanity-check fails.")
+    ap.add_argument("--no-db", action="store_true",
+                    help="Skip writing kept listings into submissions.db (the Streamlit app's store).")
     args = ap.parse_args()
 
     if args.sanity_check:
@@ -360,6 +362,10 @@ def main():
     write_csv(csv_path, results)
     write_html(html_path, results)
     print(f"\nWrote {len(results)} listings to {csv_path} and {html_path}")
+    if not args.no_db:
+        import db  # local import so the scraper still runs if streamlit/sqlite extras aren't available
+        n_new, n_dup = db.bulk_add(results, source="craigslist-auto")
+        print(f"DB: {n_new} new listings added to submissions.db ({n_dup} already there).")
     print(f"Tip: open {html_path} in a browser, or share it with anyone — it's self-contained.")
     print_top(results, 10)
 
