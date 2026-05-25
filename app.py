@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-import db
+import store as db  # dispatcher: Google Sheets if configured, SQLite otherwise
 from fetchers import fetch_from_url, is_craigslist
 
 st.set_page_config(page_title="Apartment Hunt · NYU Tandon", page_icon="🏠", layout="wide")
@@ -18,6 +18,11 @@ st.caption(
     "score Craigslist listings against fit for an NYU Tandon student, and keep "
     "everything in one place."
 )
+if db.BACKEND == "sqlite":
+    msg = "Using local SQLite store (data won't persist across app redeploys)."
+    if db.BACKEND_ERROR:
+        msg += f"  _Sheets backend unavailable: {db.BACKEND_ERROR}_"
+    st.warning(msg, icon="ℹ️")
 
 # ---------- submit form ----------
 with st.form("submit", clear_on_submit=True):
