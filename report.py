@@ -1547,6 +1547,11 @@ def write_html(path: str, listings: "list[Listing]") -> None:
         'family=JetBrains+Mono:wght@400;500;600&display=swap'
     )
 
+    # Hoisted out of the f-string below because Python <3.12 rejects backslashes
+    # inside f-string expressions. Escape `</` so the payload JSON can't terminate
+    # the surrounding <script> tag if a listing description ever contains "</script>".
+    payload_json = json.dumps(payload, separators=(',', ':')).replace('</', '<\\/')
+
     body = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1656,7 +1661,7 @@ def write_html(path: str, listings: "list[Listing]") -> None:
   </footer>
 </div>
 
-<script id="payload" type="application/json">{json.dumps(payload, separators=(',', ':')).replace('</', '<\\/')}</script>
+<script id="payload" type="application/json">{payload_json}</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
