@@ -312,6 +312,25 @@ def _read_manual_urls(path: str) -> list[str]:
     return urls
 
 
+def _read_submissions_csv(path: str) -> list[str]:
+    """Read URLs from a Google-Sheets-style intake CSV (Timestamp, URL, Submitted by, Note).
+    Rows whose URL cell isn't an http(s) URL are skipped with a warning — family submitters
+    sometimes paste the page title instead of the link."""
+    if not os.path.exists(path):
+        return []
+    urls = []
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            cell = (row.get("URL") or "").strip()
+            if not cell:
+                continue
+            if not (cell.startswith("http://") or cell.startswith("https://")):
+                print(f"[skip submission] not a URL: {cell[:60]!r}", file=sys.stderr)
+                continue
+            urls.append(cell)
+    return urls
+
+
 def print_top(listings: list[Listing], n: int = 10) -> None:
     print(f"\nTop {min(n, len(listings))} of {len(listings)} listings\n" + "-" * 72)
     for l in listings[:n]:
@@ -335,6 +354,8 @@ def main():
                     help="Write outputs into docs/ (latest + dated archives) for GitHub Pages hosting.")
     ap.add_argument("--manual-urls", default="manual_urls.txt",
                     help="Path to a file of extra URLs to include (one per line, # comments allowed). Default: manual_urls.txt")
+    ap.add_argument("--submissions", default="submissions.csv",
+                    help="Path to a CSV (Timestamp, URL, Submitted by, Note) of family-submitted listings. Default: submissions.csv")
     args = ap.parse_args()
 
     if args.sanity_check:
@@ -373,30 +394,30 @@ def main():
         listing.score = score(listing)
         results.append(listing)
 
-    # Manually-submitted URLs (e.g., from aunt/uncle texting Animesh a link). These bypass
-    # the hard filters — if someone took the time to submit it, surface it regardless of
-    # price/distance. Score still applies so it ranks alongside scraped listings.
-    manual_urls = _read_manual_urls(args.manual_urls)
-    n_manual_new = n_manual_dup = 0
-    for url in manual_urls:
+    # Family-submitted URLs (manual_urls.txt + submissions.csv intake from a Google Sheet).
+    # These bypass the hard filters — if someone took the time to submit it, surface it
+    # regardless of price/distance. Score still applies so it ranks alongside scraped listings.
+    extra_urls = _read_manual_urls(args.manual_urls) + _read_submissions_csv(args.submissions)
+    n_extra_new = n_extra_dup = 0
+    for url in extra_urls:
         if url in seen_urls:
-            n_manual_dup += 1
+            n_extra_dup += 1
             continue
         seen_urls.add(url)
         try:
             html = fetch(url)
         except (requests.RequestException, RuntimeError) as e:
-            print(f"[skip manual] {url}: {e}", file=sys.stderr)
+            print(f"[skip extra] {url}: {e}", file=sys.stderr)
             continue
         listing = parse_detail(html, {"url": url, "title": "", "price": None, "posted": None})
         if listing is None:
-            print(f"[skip manual] {url}: could not parse", file=sys.stderr)
+            print(f"[skip extra] {url}: could not parse", file=sys.stderr)
             continue
         listing.score = score(listing)
         results.append(listing)
-        n_manual_new += 1
-    if manual_urls:
-        print(f"Manual URLs: {n_manual_new} added, {n_manual_dup} already in scrape results ({args.manual_urls})")
+        n_extra_new += 1
+    if extra_urls:
+        print(f"Submitted URLs: {n_extra_new} added, {n_extra_dup} already in scrape results")
 
     results.sort(key=lambda l: l.score, reverse=True)
 
