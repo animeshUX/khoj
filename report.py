@@ -3,6 +3,7 @@ that anyone can open in a browser without installing anything."""
 from __future__ import annotations
 
 import html as _html
+import os
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -56,6 +57,19 @@ def _tier(score: int) -> str:
     return "high" if score >= 80 else "mid" if score >= 60 else "low"
 
 
+def _read_curated(path: str = "manual_links.txt") -> list[tuple[str, str]]:
+    if not os.path.exists(path):
+        return []
+    out = []
+    for line in open(path, encoding="utf-8"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        url, _, note = line.partition("|")
+        out.append((url.strip(), note.strip()))
+    return out
+
+
 def write_html(path: str, listings: "list[Listing]") -> None:
     """Write a self-contained HTML report. No external assets — share the file as-is."""
     e = _html.escape
@@ -81,6 +95,16 @@ def write_html(path: str, listings: "list[Listing]") -> None:
         f'<li><a href="{e(url)}" target="_blank" rel="noopener">{e(name)}</a> — {e(note)}</li>'
         for name, url, note in OTHER_SOURCES
     )
+    curated = _read_curated()
+    curated_block = ""
+    if curated:
+        items = "".join(
+            f'<li><a href="{e(url)}" target="_blank" rel="noopener">{e(note or url)}</a></li>'
+            for url, note in curated
+        )
+        curated_block = (
+            f'<h3>Hand-picked listings (submitted directly)</h3><ul>{items}</ul>'
+        )
     body = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
@@ -90,7 +114,8 @@ def write_html(path: str, listings: "list[Listing]") -> None:
         f'<p class="meta">{len(listings)} listings · within 1.5 mi of 370 Jay St · '
         f'sorted by fit score · generated {date_str}</p></header>'
         f'<main>{"".join(cards) or "<p>No listings matched the filters.</p>"}</main>'
-        f'<footer><h3>Other places worth checking manually</h3><ul>{other_items}</ul>'
+        f'<footer>{curated_block}'
+        f'<h3>Other places worth checking manually</h3><ul>{other_items}</ul>'
         '<p>This report covers Craigslist only. The links above cover product types Craigslist misses '
         '(managed student housing, broker listings, aggregators).</p></footer>'
         '</body></html>'
