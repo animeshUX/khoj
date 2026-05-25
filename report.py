@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import html as _html
 import json
-import math
 import os
 import re
 import statistics
@@ -78,53 +77,6 @@ _KEYWORD_TAGS = [
 ]
 _TRAIN_RX = re.compile(r'\b([FACR])\s*(train|line)\b', re.I)
 
-_CAMPUS_LAT = 40.6929
-_CAMPUS_LNG = -73.9870
-_MILES_PER_DEG_LAT = 69.0
-_MILES_PER_DEG_LNG = 52.5  # ≈ 69 * cos(40.69°), valid at NYC latitude
-
-
-def _mini_map_svg(lat, lng):
-    """Stylized A→B SVG showing listing position relative to NYU Tandon (370 Jay St).
-
-    118×118, north-up, origin = campus at (0, 0). Concentric mile rings (1/2/3/4 mi)
-    plus a dashed crimson line from campus to the listing with the distance labeled.
-    Returns '' for listings without coordinates."""
-    if lat is None or lng is None:
-        return ""
-    dx_miles = (lng - _CAMPUS_LNG) * _MILES_PER_DEG_LNG
-    dy_miles = (lat - _CAMPUS_LAT) * _MILES_PER_DEG_LAT
-    dist_miles = math.hypot(dx_miles, dy_miles)
-    scale_px = 13.0  # 13px per mile → 4 mi fits in 52px
-    dx = dx_miles * scale_px
-    dy = -dy_miles * scale_px  # SVG y inverted: north up = -y
-    r_px = math.hypot(dx, dy)
-    if r_px > 54:
-        dx, dy = dx * 54 / r_px, dy * 54 / r_px
-    mx, my = dx / 2, dy / 2
-    # Offset the label perpendicular to the line so it doesn't sit on top of it
-    if r_px > 1:
-        nx = -dy / r_px * 9
-        ny = dx / r_px * 9
-    else:
-        nx = ny = 0
-    return (
-        '<svg class="mini-map" viewBox="-60 -60 120 120" width="118" height="118" aria-hidden="true">'
-        '<line x1="-58" y1="0" x2="58" y2="0" class="mm-axis"/>'
-        '<line x1="0" y1="-58" x2="0" y2="58" class="mm-axis"/>'
-        '<circle cx="0" cy="0" r="13" class="mm-ring"/>'
-        '<circle cx="0" cy="0" r="26" class="mm-ring"/>'
-        '<circle cx="0" cy="0" r="39" class="mm-ring"/>'
-        '<circle cx="0" cy="0" r="52" class="mm-ring"/>'
-        f'<line x1="0" y1="0" x2="{dx:.2f}" y2="{dy:.2f}" class="mm-line"/>'
-        f'<text x="{mx + nx:.2f}" y="{my + ny + 2:.2f}" class="mm-distance">{dist_miles:.1f} mi</text>'
-        '<circle cx="0" cy="0" r="4" class="mm-campus"><title>NYU Tandon · 370 Jay St</title></circle>'
-        f'<circle cx="{dx:.2f}" cy="{dy:.2f}" r="3.5" class="mm-listing"><title>This listing</title></circle>'
-        '<text x="0" y="-49" class="mm-cardinal">N</text>'
-        '</svg>'
-    )
-
-
 def _extract_tags(title, description):
     haystack = f"{title}\n{description}"
     tags = [label for rx, label in _KEYWORD_TAGS if rx.search(haystack)]
@@ -165,7 +117,6 @@ def _payload(listings):
             "walkMin": _walking_minutes(l.distance_miles),
             "score": l.score,
             "tags": _extract_tags(l.title, l.description or ""),
-            "mapSvg": _mini_map_svg(l.lat, l.lng),
             "source": source,  # empty for Craigslist, hostname for external submissions
         })
     return out
@@ -512,59 +463,6 @@ body {
   text-transform: lowercase;
 }
 .entry.is-external .entry-num { color: var(--gold); }
-.entry.is-external .mm-line { stroke: var(--gold); opacity: 0.5; }
-.entry.is-external .mm-listing { fill: var(--gold); }
-
-/* Per-row mini-map: stylized A-to-B diagram, listing -> NYU Tandon (370 Jay) */
-.mini-map {
-  display: block;
-  margin-top: 0.3rem;
-  overflow: visible;
-}
-.mm-axis { stroke: var(--rule-soft); stroke-width: 0.5; stroke-dasharray: 2 3; }
-.mm-ring { fill: none; stroke: var(--rule-soft); stroke-width: 0.5; stroke-dasharray: 1.5 2.5; }
-.mm-line { stroke: var(--crimson); stroke-width: 1.1; opacity: 0.55; stroke-dasharray: 3 2; }
-.mm-distance {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 7px;
-  font-weight: 600;
-  fill: var(--ink);
-  paint-order: stroke fill;
-  stroke: var(--paper);
-  stroke-width: 3px;
-  stroke-linejoin: round;
-  text-anchor: middle;
-}
-.mm-campus {
-  fill: var(--crimson);
-  stroke: var(--paper);
-  stroke-width: 1.3;
-}
-.mm-listing {
-  fill: var(--ink);
-  stroke: var(--paper);
-  stroke-width: 1;
-}
-.entry.is-starred .mm-listing { fill: var(--crimson); }
-.entry.is-hidden .mini-map { opacity: 0.4; }
-.mm-cardinal {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 6.5px;
-  font-weight: 600;
-  fill: var(--ink-mute);
-  text-anchor: middle;
-  letter-spacing: 0.15em;
-}
-.mm-caption {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: var(--type-micro);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-  margin-top: -0.1rem;
-  white-space: nowrap;
-}
-.mm-caption.is-starred { color: var(--crimson); }
 
 .entry-body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
 
@@ -815,6 +713,91 @@ body {
   letter-spacing: 0.06em;
 }
 
+/* ----------------------------------------------------------- List + Map layout */
+.list-with-map { display: block; }    /* single column by default */
+.list-column { min-width: 0; }
+.map-panel { display: none; }          /* hidden until >=1100px viewport */
+
+@media (min-width: 1100px) {
+  .paper { max-width: 1440px; }       /* widen so list + map both breathe */
+  .list-with-map {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(400px, 38vw, 560px);
+    gap: 2.5rem;
+    align-items: start;
+  }
+  .map-panel {
+    display: block;
+    position: sticky;
+    top: 1.25rem;
+    height: calc(100vh - 2.5rem);
+    min-height: 520px;
+    max-height: 840px;
+  }
+  .map-panel-caption {
+    font-family: var(--mono);
+    font-size: var(--type-micro);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    padding: 0.55rem 0.25rem 0.65rem;
+    border-top: 2px solid var(--ink);
+  }
+  #map-side {
+    width: 100%;
+    height: calc(100% - 2.4rem);
+    border: 1px solid var(--rule);
+    background: var(--paper-tint);
+    box-shadow: 0 2px 14px rgba(26, 22, 18, 0.08);
+  }
+  /* On desktop the persistent map replaces the Map tab */
+  .tab[data-tab="map"] { display: none; }
+  #view-map { display: none !important; }
+}
+
+/* Linked entry ↔ pin selection state */
+.entry { cursor: pointer; }
+.entry.is-active { background: rgba(140, 32, 38, 0.05); }
+.entry.is-active .entry-num,
+.entry.is-active .entry-num-meta { color: var(--crimson); }
+
+/* ----------------------------------------------------------------- Map (Leaflet) */
+#map, #map-side {
+  height: 520px;
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--paper-tint);
+}
+.leaflet-popup-content { font-family: var(--serif-body); font-size: var(--type-small); line-height: 1.4; }
+.leaflet-popup-content b { font-family: var(--serif-display); font-weight: 600; }
+.leaflet-popup-content a { color: var(--crimson); }
+
+.khoj-pin {
+  background: var(--ink);
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  cursor: pointer;
+}
+.khoj-pin.is-campus {
+  background: var(--crimson);
+  width: 20px; height: 20px;
+  box-shadow: 0 0 0 4px var(--paper), 0 2px 6px rgba(140,32,38,0.4);
+}
+.khoj-pin.is-starred { background: var(--crimson); }
+.khoj-pin.is-hidden { background: var(--ink-mute); opacity: 0.5; }
+.khoj-pin.is-active {
+  background: var(--crimson) !important;
+  width: 22px !important; height: 22px !important;
+  box-shadow: 0 0 0 5px rgba(140, 32, 38, 0.22),
+              0 3px 10px rgba(0, 0, 0, 0.35) !important;
+  transform: scale(1.15);
+  z-index: 1000 !important;
+}
+
 /* ----------------------------------------------------------- Responsive */
 @media (max-width: 720px) {
   .paper { padding: 1.5rem 1rem 3rem; }
@@ -914,8 +897,6 @@ JS = r"""
         <div class="${numClass}">
           ${pad(l.n)}
           <div class="entry-num-meta${fresh && !isExternal ? ' fresh' : ''}${isExternal ? ' external' : ''}">${esc(numMetaLabel)}</div>
-          ${l.mapSvg || ''}
-          ${l.mapSvg ? `<div class="mm-caption${starred ? ' is-starred' : ''}">listing → 370 jay</div>` : ''}
         </div>
         <div class="entry-body">
           <div class="entry-meta">
@@ -979,24 +960,36 @@ JS = r"""
         empty.style.display = 'none';
       }
     } else if (state.tab === 'map') {
-      mountMap();
+      mountMap('map');
     }
+    // Keep the persistent right-side map's markers in sync with star/hide state
+    refreshMapMarkers();
   }
 
-  // ------- Map (lazy-mounted, once) --------------------------------------
-  let mapMounted = false;
-  let mapInstance;
-  function mountMap() {
-    if (mapMounted) { refreshMapMarkers(); return; }
-    mapMounted = true;
-    mapInstance = L.map('map', { scrollWheelZoom: false }).setView(CAMPUS, 13);
+  // ------- Map -----------------------------------------------------------
+  // Two possible mount points:
+  //   #map-side : persistent right-rail panel, mounted on page load (desktop only)
+  //   #map      : full-width view under the Map tab (mobile/back-compat)
+  // We mount whichever element is in the DOM and visible. markerByUrl is shared
+  // so hover/click highlighting Just Works regardless of which mount is live.
+  let mapInstance = null;
+  let mountedAt = null;            // 'map-side' | 'map'
+  const markerByUrl = new Map();   // url → Leaflet marker
+
+  function mountMap(targetId) {
+    if (mapInstance && mountedAt === targetId) { refreshMapMarkers(); return; }
+    if (mapInstance) { mapInstance.remove(); markerByUrl.clear(); }
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    mountedAt = targetId;
+    mapInstance = L.map(targetId, { scrollWheelZoom: false }).setView(CAMPUS, 13);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap',
-      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap', maxZoom: 19,
     }).addTo(mapInstance);
     L.marker(CAMPUS, {
       icon: L.divIcon({ className: 'khoj-pin is-campus', iconSize: [20, 20] }),
       zIndexOffset: 1000,
+      interactive: false,
     }).addTo(mapInstance).bindPopup('<b>NYU Tandon</b><br>370 Jay St');
     refreshMapMarkers();
     const coords = PAYLOAD.filter(l => l.lat != null && l.lng != null).map(l => [l.lat, l.lng]);
@@ -1004,21 +997,71 @@ JS = r"""
     if (coords.length > 1) mapInstance.fitBounds(coords, { padding: [40, 40] });
   }
 
-  let markerLayer;
+  let markerLayer = null;
   function refreshMapMarkers() {
+    if (!mapInstance) return;
     if (markerLayer) markerLayer.remove();
     markerLayer = L.layerGroup().addTo(mapInstance);
+    markerByUrl.clear();
     PAYLOAD.forEach(l => {
       if (l.lat == null || l.lng == null) return;
-      const cls = state.hidden.has(l.url) ? 'is-hidden' : state.starred.has(l.url) ? 'is-starred' : '';
+      const cls = state.hidden.has(l.url) ? 'is-hidden'
+                : state.starred.has(l.url) ? 'is-starred'
+                : '';
       const marker = L.marker([l.lat, l.lng], {
-        icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] })
+        icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] }),
       });
+      const bedTxt = l.bedrooms === 0 ? 'Studio'
+                  : (l.bedrooms != null ? l.bedrooms + 'BR' : '?');
+      const distTxt = l.distance != null ? l.distance.toFixed(2) + ' mi' : '? mi';
       marker.bindPopup(
-        `<b>${esc(l.title)}</b><br>${l.price != null ? '$' + l.price.toLocaleString() : '$?'} · ${l.bedrooms === 0 ? 'Studio' : l.bedrooms + 'BR'} · Score ${l.score}<br><a href="${esc(l.url)}" target="_blank">View →</a>`
+        `<b>#${pad(l.n)} ${esc(l.title)}</b><br>` +
+        `${l.price != null ? '$' + l.price.toLocaleString() : '$?'} · ${esc(bedTxt)} · ${esc(distTxt)}<br>` +
+        `<a href="${esc(l.url)}" target="_blank" rel="noopener">View →</a>`
       );
+      marker.on('click', () => focusEntry(l.url, { scroll: true }));
       marker.addTo(markerLayer);
+      markerByUrl.set(l.url, marker);
     });
+  }
+
+  // ------- Linked entry ↔ pin highlight ---------------------------------
+  let activeUrl = null;
+  function setActive(url, opts) {
+    opts = opts || {};
+    if (activeUrl === url) return;
+    // clear previous
+    if (activeUrl) {
+      document.querySelectorAll('.entry.is-active').forEach(e => e.classList.remove('is-active'));
+      const prev = markerByUrl.get(activeUrl);
+      if (prev) {
+        const cls = prev.getElement && prev.getElement();
+        if (cls) cls.classList.remove('is-active');
+      }
+    }
+    activeUrl = url;
+    if (!url) return;
+    document.querySelectorAll(`.entry[data-url="${cssEscape(url)}"]`).forEach(e => e.classList.add('is-active'));
+    const m = markerByUrl.get(url);
+    if (m) {
+      const el = m.getElement && m.getElement();
+      if (el) el.classList.add('is-active');
+      if (opts.pan && mapInstance) mapInstance.panTo(m.getLatLng(), { animate: true });
+      if (opts.openPopup) m.openPopup();
+    }
+  }
+
+  function focusEntry(url, opts) {
+    opts = opts || {};
+    setActive(url, { pan: true, openPopup: true });
+    if (opts.scroll) {
+      const el = document.querySelector(`.entry[data-url="${cssEscape(url)}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function cssEscape(s) {
+    return String(s).replace(/(["\\])/g, '\\$1');
   }
 
   // ------- Event wiring --------------------------------------------------
@@ -1045,32 +1088,52 @@ JS = r"""
 
   document.addEventListener('click', e => {
     const btn = e.target.closest('[data-act]');
-    if (!btn) return;
-    const entry = btn.closest('.entry');
-    if (!entry) return;
-    const url = entry.dataset.url;
-    const act = btn.dataset.act;
-
-    const toggle = (set) => set.has(url) ? set.delete(url) : set.add(url);
-    if (act === 'star') {
-      toggle(state.starred); persist(); render();
-    } else if (act === 'hide') {
-      toggle(state.hidden); persist(); render();
-    } else if (act === 'note') {
-      entry.querySelector('.note-area').classList.toggle('open');
-    } else if (act === 'save-note') {
-      const txt = entry.querySelector('textarea').value.trim();
-      if (txt) state.notes[url] = txt; else delete state.notes[url];
-      persist(); render();
-    } else if (act === 'cancel-note') {
-      entry.querySelector('.note-area').classList.remove('open');
-    } else if (act === 'delete-note') {
-      delete state.notes[url];
-      persist(); render();
+    if (btn) {
+      const entry = btn.closest('.entry');
+      if (!entry) return;
+      const url = entry.dataset.url;
+      const act = btn.dataset.act;
+      const toggle = (set) => set.has(url) ? set.delete(url) : set.add(url);
+      if (act === 'star') {
+        toggle(state.starred); persist(); render();
+      } else if (act === 'hide') {
+        toggle(state.hidden); persist(); render();
+      } else if (act === 'note') {
+        entry.querySelector('.note-area').classList.toggle('open');
+      } else if (act === 'save-note') {
+        const txt = entry.querySelector('textarea').value.trim();
+        if (txt) state.notes[url] = txt; else delete state.notes[url];
+        persist(); render();
+      } else if (act === 'cancel-note') {
+        entry.querySelector('.note-area').classList.remove('open');
+      } else if (act === 'delete-note') {
+        delete state.notes[url];
+        persist(); render();
+      }
+      return;
+    }
+    // Click anywhere else inside an entry: highlight + pan the map to that listing.
+    // (Clicks on action buttons are handled above and return early so this won't fire.)
+    const entry = e.target.closest('.entry');
+    if (entry && entry.dataset.url) {
+      setActive(entry.dataset.url, { pan: true });
     }
   });
 
+  // Hover an entry → highlight its pin (no pan, no popup — that's reserved for click).
+  document.addEventListener('mouseover', e => {
+    const entry = e.target.closest('.entry');
+    if (entry && entry.dataset.url) setActive(entry.dataset.url);
+  });
+
+  // ------- Initial paint + persistent map mount -------------------------
   render();
+  // Mount the persistent right-rail map on desktop. The MAP tab is hidden
+  // at >=1100px (CSS), so on desktop this is the only map. On smaller
+  // viewports, #map-side is display:none and we fall back to the tab.
+  if (document.getElementById('map-side') && getComputedStyle(document.getElementById('map-panel')).display !== 'none') {
+    mountMap('map-side');
+  }
 })();
 """
 
@@ -1179,18 +1242,26 @@ def write_html(path: str, listings: "list[Listing]") -> None:
     </div>
   </section>
 
-  <section class="view active" id="view-inbox">
-    <ol class="listings" id="listings"></ol>
-  </section>
+  <div class="list-with-map">
+    <main class="list-column">
+      <section class="view active" id="view-inbox">
+        <ol class="listings" id="listings"></ol>
+      </section>
 
-  <section class="view" id="view-shortlist">
-    <ol class="listings" id="shortlist-listings"></ol>
-    <p class="empty" id="shortlist-empty" style="display:none">No starred listings yet. Star ★ entries in the Inbox to build a shortlist.</p>
-  </section>
+      <section class="view" id="view-shortlist">
+        <ol class="listings" id="shortlist-listings"></ol>
+        <p class="empty" id="shortlist-empty" style="display:none">No starred listings yet. Star ★ entries in the Inbox to build a shortlist.</p>
+      </section>
 
-  <section class="view" id="view-map">
-    <div id="map"></div>
-  </section>
+      <section class="view" id="view-map">
+        <div id="map"></div>
+      </section>
+    </main>
+    <aside class="map-panel" id="map-panel">
+      <div class="map-panel-caption">listings near 370 Jay St — hover an entry to highlight its pin</div>
+      <div id="map-side"></div>
+    </aside>
+  </div>
 
   <footer class="colophon">
     {curated_block}
