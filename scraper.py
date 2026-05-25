@@ -363,9 +363,9 @@ def main():
     write_html(html_path, results)
     print(f"\nWrote {len(results)} listings to {csv_path} and {html_path}")
     if not args.no_db:
-        import db  # local import so the scraper still runs if streamlit/sqlite extras aren't available
-        n_new, n_dup = db.bulk_add(results, source="craigslist-auto")
-        print(f"DB: {n_new} new listings added to submissions.db ({n_dup} already there).")
+        import store  # dispatcher picks Sheets if configured, SQLite otherwise
+        n_new, n_dup = store.bulk_add(results, source="craigslist-auto")
+        print(f"Store ({store.BACKEND}): {n_new} new listings added, {n_dup} already there.")
     print(f"Tip: open {html_path} in a browser, or share it with anyone — it's self-contained.")
     print_top(results, 10)
 

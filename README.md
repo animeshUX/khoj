@@ -41,16 +41,51 @@ streamlit run app.py
 # opens http://localhost:8501 — paste a Craigslist or any listing URL
 ```
 
-Craigslist URLs get the full pipeline (price, bedrooms, distance, fit score). Any other URL falls back to OpenGraph metadata (title + description + image only — no scoring). Submissions are stored in `submissions.db` (SQLite, gitignored). You can mark each submission as `new / interesting / viewed / not_interesting`.
+Craigslist URLs get the full pipeline (price, bedrooms, distance, fit score). Any other URL falls back to OpenGraph metadata (title + description + image only — no scoring). You can mark each submission as `new / interesting / viewed / not_interesting`.
+
+### Backing store: Sheets (recommended) or SQLite
+
+The store is dispatched at import time:
+
+- **Google Sheets** — chosen if `KHOJ_SHEET_ID` or `KHOJ_SHEET_NAME` is configured AND credentials resolve. All read/write happens against one shared spreadsheet, so the local scraper, the deployed Streamlit app, and human submitters all see the same data.
+- **SQLite** (`submissions.db`) — the fallback when Sheets isn't configured. Fine for solo local use; not shareable.
+
+### Set up Google Sheets backing (one-time, ~10 min)
+
+1. **Google Cloud project** → console.cloud.google.com → create or reuse a project → enable **Google Sheets API**.
+2. **Service account** → IAM → Service Accounts → Create → grant no roles → done. Then **Keys → Add key → JSON**, download the file.
+3. **Sheet** → create a new Google Sheet (any name). Copy its ID from the URL (`https://docs.google.com/spreadsheets/d/<ID>/edit`). **Share** it with the service account email (`*@*.iam.gserviceaccount.com`, Editor role).
+4. **Config**:
+
+```bash
+# locally
+export GOOGLE_APPLICATION_CREDENTIALS=/abs/path/to/service_account.json
+export KHOJ_SHEET_ID=<id from URL>
+python scraper.py            # writes to the Sheet, not SQLite
+streamlit run app.py         # reads/writes the same Sheet
+```
+
+For Streamlit Cloud, paste these into the app's **Secrets** (Streamlit Cloud → app → Settings → Secrets) as TOML:
+
+```toml
+KHOJ_SHEET_ID = "your-sheet-id-here"
+
+[gcp_service_account]
+type = "service_account"
+project_id = "..."
+private_key_id = "..."
+private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+client_email = "...@...iam.gserviceaccount.com"
+# ... rest of the JSON fields
+```
 
 ### Deploy free on Streamlit Cloud
 
 1. Push this repo to GitHub (already done).
-2. Go to <https://share.streamlit.io>, sign in with GitHub, click **New app**.
+2. <https://share.streamlit.io> → sign in with GitHub → **New app**.
 3. Pick this repo, branch `main`, main file `app.py`. Deploy.
-4. You'll get a public URL like `khoj.streamlit.app`. Share it with your aunt and uncle.
-
-**Persistence caveat:** Streamlit Cloud's filesystem persists between reruns inside the same container but can be wiped on redeploy. For long-term durability, swap `db.py` to write to Google Sheets (via `gspread`) or a hosted SQLite like Turso. The schema is small — easy to migrate.
+4. Add Sheets Secrets per the block above (or skip — app will warn and use ephemeral SQLite).
+5. You'll get a public URL like `khoj.streamlit.app`. Share it with your aunt and uncle.
 
 ## What this doesn't cover
 
