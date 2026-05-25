@@ -22,8 +22,14 @@ from report import write_html
 
 # 370 Jay St, Brooklyn, NY 11201 — NYU Tandon
 CAMPUS_COORDS = (40.6929, -73.9870)
-SEARCH_URL = "https://newyork.craigslist.org/search/brk/apa"
-USER_AGENT = "apartment-finder/0.1 (personal, polite)"
+# Pre-filter on CL side: 2-mile radius from 370 Jay St (zip 11201). The 1.5-mile geodesic
+# filter in passes_hard_filters() trims further. Without this, we waste ~80% of fetches
+# on listings far from campus.
+SEARCH_URL = (
+    "https://newyork.craigslist.org/search/brk/apa"
+    "?postal=11201&search_distance=2"
+)
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 REQUEST_DELAY_SEC = 1.5
 HTTP_TIMEOUT = 25
 
@@ -47,8 +53,14 @@ STRICT_NO_PETS = re.compile(r"strict[^.\n]{0,40}no\s*pets|no\s*pets[^.\n]{0,40}s
 session = requests.Session()
 session.headers.update({
     "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
 })
 
 
@@ -81,18 +93,25 @@ def fetch(url: str) -> str:
 
 
 def iter_search_items(max_listings: int):
-    """Yield BeautifulSoup <item> elements from Craigslist's RSS search feed."""
+    """Yield search-result summary dicts by parsing Craigslist's static SEO HTML list.
+
+    Craigslist serves a `<li class="cl-static-search-result">` block on the search page
+    that contains all results in static HTML. One fetch typically returns ~300 listings,
+    so we rarely need pagination. The RSS endpoint is hard-blocked; this is the
+    replacement.
+    """
     start = 0
     yielded = 0
+    sep = "&" if "?" in SEARCH_URL else "?"
     while yielded < max_listings:
-        url = f"{SEARCH_URL}?{urlencode({'format': 'rss', 's': start})}"
+        url = f"{SEARCH_URL}{sep}{urlencode({'s': start})}" if start else SEARCH_URL
         try:
-            xml = fetch(url)
+            html = fetch(url)
         except (requests.RequestException, RuntimeError) as e:
-            print(f"[warn] search page {start} failed: {e}", file=sys.stderr)
+            print(f"[warn] search page s={start} failed: {e}", file=sys.stderr)
             return
-        soup = BeautifulSoup(xml, "xml")
-        items = soup.find_all("item")
+        soup = BeautifulSoup(html, "html.parser")
+        items = soup.find_all("li", class_="cl-static-search-result")
         if not items:
             return
         for item in items:
@@ -108,22 +127,21 @@ def _text(el) -> str:
 
 
 def parse_summary(item) -> dict | None:
-    """Extract url, title, raw price, and posted datetime from one RSS <item>."""
-    url = _text(item.find("link"))
-    title = _text(item.find("title"))
+    """Extract url, title, and raw price from one static search-result <li>."""
+    link = item.find("a", href=True)
+    if not link:
+        return None
+    url = link["href"]
+    title = _text(item.find("div", class_="title")) or item.get("title", "").strip()
     if not url or not title:
         return None
-    # <dc:date> via namespace handling
-    date_el = item.find("date") or item.find(lambda t: t.name and t.name.endswith("date"))
-    posted = None
-    if date_el and date_el.text:
-        try:
-            posted = datetime.fromisoformat(date_el.text.strip().replace("Z", "+00:00"))
-        except ValueError:
-            posted = None
-    price_m = re.search(r"\$([\d,]+)", title)
-    price = int(price_m.group(1).replace(",", "")) if price_m else None
-    return {"url": url, "title": title, "price": price, "posted": posted}
+    price = None
+    price_el = item.find("div", class_="price")
+    if price_el:
+        m = re.search(r"\$([\d,]+)", price_el.text)
+        if m:
+            price = int(m.group(1).replace(",", ""))
+    return {"url": url, "title": title, "price": price, "posted": None}
 
 
 def parse_detail(html: str, summary: dict) -> Listing | None:
@@ -140,7 +158,8 @@ def parse_detail(html: str, summary: dict) -> Listing | None:
             if m:
                 price = int(m.group(1).replace(",", ""))
 
-    attrs_text = " ".join(_text(b) for b in soup.find_all("p", class_="attrgroup")).lower()
+    # Craigslist switched <p class="attrgroup"> to <div class="attrgroup"> in 2024.
+    attrs_text = " ".join(_text(b) for b in soup.find_all("div", class_="attrgroup")).lower()
     m = re.search(r"(\d+)\s*br", attrs_text)
     if m:
         bedrooms = int(m.group(1))
@@ -149,8 +168,15 @@ def parse_detail(html: str, summary: dict) -> Listing | None:
     else:
         bedrooms = None
 
-    hood_small = soup.select_one("span.postingtitletext small")
-    neighborhood = hood_small.text.strip(" ()") if hood_small else ""
+    # Neighborhood lives in the last child span of <span class="postingtitletext">, formatted "(Hood)"
+    neighborhood = ""
+    title_wrap = soup.find("span", class_="postingtitletext")
+    if title_wrap:
+        for sp in title_wrap.find_all("span", recursive=False):
+            txt = sp.get_text(" ", strip=True)
+            if txt.startswith("(") and txt.endswith(")"):
+                neighborhood = txt.strip(" ()")
+                break
     address = _text(soup.find("div", class_="mapaddress"))
 
     lat = lng = None
@@ -239,6 +265,36 @@ def write_csv(path: str, listings: list[Listing]) -> None:
             w.writerow({k: row.get(k, "") for k in CSV_COLUMNS})
 
 
+def diagnose() -> None:
+    """Probe several Craigslist endpoints with different headers; print what works."""
+    probes = [
+        ("homepage", "https://newyork.craigslist.org/"),
+        ("search HTML", "https://newyork.craigslist.org/search/brk/apa"),
+        ("search RSS", "https://newyork.craigslist.org/search/brk/apa?format=rss&s=0"),
+        ("about page", "https://www.craigslist.org/about/sites"),
+    ]
+    print("Probing Craigslist endpoints from this network ...\n")
+    for label, url in probes:
+        time.sleep(1.0)
+        try:
+            r = session.get(url, timeout=15, allow_redirects=False)
+            note = ""
+            if r.status_code == 403 and "blocked" in r.text.lower():
+                note = "  (CL block page)"
+            elif r.status_code in (301, 302):
+                note = f"  → {r.headers.get('Location','?')[:60]}"
+            print(f"  HTTP {r.status_code}  {label:<14}  {url}{note}")
+        except Exception as e:
+            print(f"  ERROR        {label:<14}  {url}  ({e})")
+    print(
+        "\nInterpretation:\n"
+        "  - All 200: transient block earlier — re-run `python scraper.py --sanity-check`.\n"
+        "  - Homepage 200 but search 403: Craigslist is blocking the search/RSS endpoints from your IP.\n"
+        "  - Everything 403: your network is on a Craigslist blocklist (VPN, corporate Wi-Fi, CGNAT ISP).\n"
+        "    → Try turning off any VPN, switch to mobile hotspot, or run from a different network."
+    )
+
+
 def print_top(listings: list[Listing], n: int = 10) -> None:
     print(f"\nTop {min(n, len(listings))} of {len(listings)} listings\n" + "-" * 72)
     for l in listings[:n]:
@@ -256,16 +312,23 @@ def main():
     ap.add_argument("--out", default=None, help="Output path stem (default apartments_YYYY-MM-DD); .csv and .html are written.")
     ap.add_argument("--sanity-check", action="store_true",
                     help="Fetch the first search page and exit — verifies network/IP isn't blocked.")
+    ap.add_argument("--diagnose", action="store_true",
+                    help="Probe multiple Craigslist endpoints to identify what's blocked. Run this when --sanity-check fails.")
     args = ap.parse_args()
 
     if args.sanity_check:
         try:
-            xml = fetch(f"{SEARCH_URL}?format=rss&s=0")
-            items = BeautifulSoup(xml, "xml").find_all("item")
+            html = fetch(SEARCH_URL)
+            items = BeautifulSoup(html, "html.parser").find_all("li", class_="cl-static-search-result")
             print(f"OK: search returned {len(items)} items from first page.")
         except Exception as e:
             print(f"FAIL: {e}", file=sys.stderr)
+            print("→ Run `python scraper.py --diagnose` to find out which endpoints work.", file=sys.stderr)
             sys.exit(1)
+        return
+
+    if args.diagnose:
+        diagnose()
         return
 
     print(f"Scraping up to {args.max_listings} listings from {SEARCH_URL} ...")
