@@ -4,3 +4,4 @@ __pycache__/
 apartments_*.csv
 apartments_*.html
 sample_report.*
+submissions.db
