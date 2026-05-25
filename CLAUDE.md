@@ -13,13 +13,36 @@ Khoj is a daily-updated Craigslist apartment report for an incoming NYU Tandon *
 | File | Purpose |
 |---|---|
 | `scraper.py` | Pulls Craigslist Brooklyn apartments, filters by price/distance/recency, scores by fit |
-| `report.py` | Renders the editorial-dashboard HTML report (Fraunces + Newsreader + JetBrains Mono, paper-cream theme, localStorage state for star/hide/notes, Leaflet map) |
-| `manual_urls.txt` | Append-only file of URLs aunt/uncle text in; scraper merges them with scraped results |
+| `report.py` | Renders the editorial-dashboard HTML report |
+| `manual_urls.txt` | Append-only file of Craigslist URLs aunt/uncle text in; scraper merges them with scraped results (bypasses hard filters, still scored) |
+| `submissions.csv` | Google-Sheets-style intake file (Timestamp, URL, Submitted by, Note); also merged into the report. Non-URL cells skipped with a warning. `submissions_template.csv` is the empty header for the shared Sheet. |
 | `.github/workflows/scrape.yml` | Daily cron + on-demand trigger; runs scraper, commits `docs/` back to main |
-| `docs/index.html` | What GitHub Pages serves at `animeshux.github.io/khoj/` |
+| `docs/index.html` | What GitHub Pages serves at https://animeshux.github.io/khoj/ — **live, Pages enabled** |
 | `docs/apartments_YYYY-MM-DD.{html,csv}` | Daily archive |
 
-No database. No app server. No API keys. No deployments to maintain.
+No database. No app server. No API keys. No deployments to maintain. Pages is live and the cron has been working end-to-end.
+
+## The report (report.py)
+
+A single self-contained HTML page with embedded CSS + JS. Light cream-paper theme. State lives in `localStorage` per device.
+
+**Type system** (defined as CSS variables at the top of `CSS`):
+- Fonts: **Fraunces** (display, variable opsz 9–144 + WONK + SOFT axes) · **Newsreader** (body, variable opsz, includes italic) · **JetBrains Mono** (data/labels). All from Google Fonts.
+- Scale anchored at **17px body**, major-third (1.25) ratio for headings:
+  `--type-mega 4.5rem` · `--type-h1 2.75` · `--type-h2 1.875` · `--type-h3 1.5` · `--type-h4 1.25` · `--type-lead 1.125` · `--type-body 1` · `--type-small 0.875` · `--type-mono 0.8125` · `--type-micro 0.6875`
+- Leadings: `--leading-display 0.95` · `--leading-tight 1.15` · `--leading-snug 1.25` · `--leading-normal 1.55`
+- Use the tokens. Don't introduce new hardcoded rem values without a reason — there were lots of 0.62/0.65/0.7/0.74/0.78rem values before, all collapsed into the triple above.
+
+**Color palette** (also CSS vars):
+- `--paper #F3ECDE` warm cream background · `--paper-warm #EDE3CE` slightly-darker tint
+- `--ink #1A1612` near-black · `--ink-soft #5A4E42` · `--ink-mute #93857A`
+- `--rule #B8AB97` borders · `--rule-soft #D6CBB6` hairlines
+- `--crimson #8C2026` accent (newspaper red) — used sparingly: top-pick scores, italic display text, star marker, action hovers
+- `--gold #7A5C1E` reserved for notes / annotation
+
+**Three views (tabs):** Inbox · Shortlist · Map. Toggled via JS state; only one `.view` is `.active` at a time. localStorage keys: `khoj.starred`, `khoj.hidden`, `khoj.notes`.
+
+**Per-row mini-map** — `_mini_map_svg(lat, lng)` in `report.py` generates a 118×118 SVG per listing showing campus as a crimson dot at center, the listing as an ink dot positioned north-up east-right, with mile rings (1/2/3/4) and a dashed connecting line labeled with the distance. Math uses a flat-earth approximation valid at NYC scale: `_MILES_PER_DEG_LAT = 69`, `_MILES_PER_DEG_LNG = 52.5` (≈ 69 × cos(40.69°)). 13px per mile, listings beyond 4mi are clipped to a 54px radius. **Don't replace this with one Leaflet instance per row** — that's 60 inits on one page.
 
 ## Common operations
 
@@ -30,7 +53,12 @@ python scraper.py --pages-mode      # writes to docs/ the way the cron does
 python scraper.py --diagnose        # probe endpoints when --sanity-check 403s
 ```
 
-To add a manually-submitted URL: append to `manual_urls.txt` (one per line, `#` comments OK, optional ` | note` suffix). Commit and push. Action picks it up on the next scheduled run or on demand from the Actions tab.
+**Two intake paths for human-submitted URLs:**
+
+1. **`manual_urls.txt`** — one URL per line, `#` comments OK, optional ` | note` suffix. Used when you copy a URL someone texted you and paste it in. Read by `_read_manual_urls()` in scraper.py.
+2. **`submissions.csv`** — Google-Sheets-style intake (`Timestamp, URL, Submitted by, Note`). Used when aunt/uncle add rows to a shared Sheet, you export it as CSV and push. Read by `_read_submissions_csv()` in scraper.py. Rows whose URL cell isn't actually a link are skipped with a warning — common when someone pastes the page title by accident.
+
+Both paths bypass the price/distance/recency hard filters but still get scored. Either way, commit and push; the Action picks them up on the next scheduled run or on demand from the Actions tab.
 
 ## DO NOT — privacy + scope
 
@@ -40,7 +68,7 @@ To add a manually-submitted URL: append to `manual_urls.txt` (one per line, `#` 
 
 - **Rebuild the Streamlit/SQLite/Sheets layers.** They existed and were deleted. The simplicity is the feature. If submission volume meaningfully grows, revisit by reviewing the parking-lot branches below — don't start over.
 - **Delete the parking-lot branches.** On `origin`:
-  - `craigslist-scraper`, `html-report-and-amber`, `debug-cl-blocking` — historical, may have something to mine
+  - `craigslist-scraper`, `html-report-and-amber`, `debug-cl-blocking`, `pages-deploy`, `editorial-dashboard`, `map-relationship` — historical / merged work
   - `submission-app`, `scraper-db-write`, `sheets-backend` — the Streamlit + DB + Sheets work, kept in case scope expands
 - **Use the Craigslist RSS endpoint.** `?format=rss` is hard-blocked everywhere (datacenter and residential IPs). Use the static SEO HTML — `<li class="cl-static-search-result">` on the search page.
 - **Add retry loops, fallback chains, or "future-proof" abstractions.** Trust the cron to retry tomorrow if today fails. Trust the user to debug with `--diagnose` if something breaks.
