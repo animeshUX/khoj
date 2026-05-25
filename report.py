@@ -779,7 +779,7 @@ body {
   .paper { max-width: none; }       /* full viewport width */
   .list-with-map {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(440px, 44vw, 820px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);  /* 50/50 split */
     gap: 2.5rem;
     align-items: start;
   }
