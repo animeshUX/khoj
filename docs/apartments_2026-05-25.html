@@ -240,8 +240,8 @@ body {
 
 .entry {
   display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 140px 1fr;
+  gap: 1.75rem;
   padding: 1.75rem 0;
   border-bottom: 1px solid var(--rule-soft);
   position: relative;
@@ -262,15 +262,19 @@ body {
 
 .entry-num {
   font-family: var(--serif-display);
-  font-size: 2.75rem;
+  font-size: 1.85rem;
   font-weight: 400;
   font-variation-settings: "opsz" 96;
   color: var(--ink-mute);
   letter-spacing: -0.04em;
   line-height: 1;
-  text-align: right;
+  text-align: center;
   padding-top: 0.1rem;
   user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
 }
 .entry-num.score-high { color: var(--crimson); font-weight: 600; }
 .entry-num.score-mid { color: var(--ink); }
@@ -281,11 +285,62 @@ body {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-mute);
-  text-align: right;
-  margin-top: 0.4rem;
+  text-align: center;
   font-weight: 500;
+  margin-top: -0.15rem;
 }
 .entry-num-meta.fresh { color: var(--crimson); }
+
+/* Per-row mini-map: stylized A-to-B diagram, listing -> NYU Tandon (370 Jay) */
+.mini-map {
+  display: block;
+  margin-top: 0.3rem;
+  overflow: visible;
+}
+.mm-axis { stroke: var(--rule-soft); stroke-width: 0.5; stroke-dasharray: 2 3; }
+.mm-ring { fill: none; stroke: var(--rule-soft); stroke-width: 0.5; stroke-dasharray: 1.5 2.5; }
+.mm-line { stroke: var(--crimson); stroke-width: 1.1; opacity: 0.55; stroke-dasharray: 3 2; }
+.mm-distance {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 600;
+  fill: var(--ink);
+  paint-order: stroke fill;
+  stroke: var(--paper);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  text-anchor: middle;
+}
+.mm-campus {
+  fill: var(--crimson);
+  stroke: var(--paper);
+  stroke-width: 1.3;
+}
+.mm-listing {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 1;
+}
+.entry.is-starred .mm-listing { fill: var(--crimson); }
+.entry.is-hidden .mini-map { opacity: 0.4; }
+.mm-cardinal {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 6.5px;
+  font-weight: 600;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+  letter-spacing: 0.15em;
+}
+.mm-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-top: -0.1rem;
+  white-space: nowrap;
+}
+.mm-caption.is-starred { color: var(--crimson); }
 
 .entry-body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
 
@@ -562,15 +617,15 @@ body {
   <section class="stats">
     <div class="stat">
       <span class="stat-label">Listings</span>
-      <span class="stat-value">3</span>
+      <span class="stat-value">2</span>
     </div>
     <div class="stat">
       <span class="stat-label">Cheapest</span>
-      <span class="stat-value">$1,050</span>
+      <span class="stat-value">$1,070</span>
     </div>
     <div class="stat">
       <span class="stat-label">Closest</span>
-      <span class="stat-value">3.08 <span style="font-size:0.7em;color:var(--ink-mute);">mi</span></span>
+      <span class="stat-value">3.28 <span style="font-size:0.7em;color:var(--ink-mute);">mi</span></span>
     </div>
     <div class="stat">
       <span class="stat-label">Shortlist</span>
@@ -579,7 +634,7 @@ body {
   </section>
 
   <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">3</span></button>
+    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">2</span></button>
     <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
     <button class="tab" data-tab="map" role="tab">Map</button>
   </nav>
@@ -628,11 +683,11 @@ body {
   </footer>
 </div>
 
-<script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-comfortable-brooklyn-apartment/7936630827.html","title":"Comfortable Brooklyn Apartment Close to Everything!","price":1070,"bedrooms":1,"neighborhood":"Brooklyn,","lat":40.647733,"lng":-73.964717,"posted":"2026-05-25","postedRel":"today","description":"Don\u2019t miss this charming 2-bedroom apartment located just steps from the Prospect Ave R train and minutes from all the restaurants, cafes, shopping, and nightlife along Park Slope\u2019s famous 5th Avenue. This cozy apartment features a comfortable living room, alcove kitchen, four closets for great storage space, and two well-sized bedrooms. ","distance":3.329233628995344,"walkMin":67,"score":24,"tags":["R train"]},{"n":2,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-relaxing-bright-bedroom/7936681410.html","title":"Relaxing Bright 1-Bedroom Retreat & Peaceful Living Home","price":1050,"bedrooms":1,"neighborhood":"Crown Heights","lat":40.67,"lng":-73.9367,"posted":"2026-05-25","postedRel":"today","description":"Relaxing Bright 1-Bedroom Retreat & Peaceful Living Home Bright and modern 1 bedroom, 1 bathroom apartment featuring white quartz countertops and stainless steel appliances. It has split A/C units, private rooftop access, and excellent natural light. The building is pet-friendly and situated in Crown Heights, with convenient access to the","distance":3.0787013049986633,"walkMin":62,"score":22,"tags":[]},{"n":3,"url":"https://newjersey.craigslist.org/apa/d/jersey-city-huge-hi-ceiling-live-work/7934545621.html","title":"HUGE HI-CEILING LIVE/WORK LOFT - GROVE ST. PATH STATION - DOWNTOWN","price":1100,"bedrooms":0,"neighborhood":"JERSEY CITY","lat":40.719851,"lng":-74.038498,"posted":"2026-05-15","postedRel":"10 days ago","description":"HI CEILING WORK/LIVE LOFT - OPEN SPACE - DOWNTOWN EASY COMMUTE. 1/2 minute walk to Grove St. PATH station. 1 minute walk to Newark Avenue shopping district. Walk to restaurants, bars & bistros. Walk to Waterfront, supermarket, parks. Hardwood floors. Very quite and peaceful apartment. No upper floor apartment. 1 apartment per floor in 3 s","distance":3.281923091257976,"walkMin":66,"score":18,"tags":[]}]</script>
+<script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-comfortable-brooklyn-apartment/7936630827.html","title":"Comfortable Brooklyn Apartment Close to Everything!","price":1070,"bedrooms":1,"neighborhood":"Brooklyn,","lat":40.647733,"lng":-73.964717,"posted":"2026-05-25","postedRel":"today","description":"Don\u2019t miss this charming 2-bedroom apartment located just steps from the Prospect Ave R train and minutes from all the restaurants, cafes, shopping, and nightlife along Park Slope\u2019s famous 5th Avenue. This cozy apartment features a comfortable living room, alcove kitchen, four closets for great storage space, and two well-sized bedrooms. \u2026","distance":3.329233628995344,"walkMin":67,"score":24,"tags":["R train"],"mapSvg":"<svg class=\"mini-map\" viewBox=\"-60 -60 120 120\" width=\"118\" height=\"118\" aria-hidden=\"true\"><line x1=\"-58\" y1=\"0\" x2=\"58\" y2=\"0\" class=\"mm-axis\"/><line x1=\"0\" y1=\"-58\" x2=\"0\" y2=\"58\" class=\"mm-axis\"/><circle cx=\"0\" cy=\"0\" r=\"13\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"26\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"39\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"52\" class=\"mm-ring\"/><line x1=\"0\" y1=\"0\" x2=\"15.21\" y2=\"40.51\" class=\"mm-line\"/><text x=\"-0.82\" y=\"25.42\" class=\"mm-distance\">3.3 mi<\/text><circle cx=\"0\" cy=\"0\" r=\"4\" class=\"mm-campus\"><title>NYU Tandon \u00b7 370 Jay St<\/title><\/circle><circle cx=\"15.21\" cy=\"40.51\" r=\"3.5\" class=\"mm-listing\"><title>This listing<\/title><\/circle><text x=\"0\" y=\"-49\" class=\"mm-cardinal\">N<\/text><\/svg>"},{"n":2,"url":"https://newjersey.craigslist.org/apa/d/jersey-city-huge-hi-ceiling-live-work/7934545621.html","title":"HUGE HI-CEILING LIVE/WORK LOFT - GROVE ST. PATH STATION - DOWNTOWN","price":1100,"bedrooms":0,"neighborhood":"JERSEY CITY","lat":40.719851,"lng":-74.038498,"posted":"2026-05-15","postedRel":"10 days ago","description":"HI CEILING WORK/LIVE LOFT - OPEN SPACE - DOWNTOWN EASY COMMUTE. 1/2 minute walk to Grove St. PATH station. 1 minute walk to Newark Avenue shopping district. Walk to restaurants, bars & bistros. Walk to Waterfront, supermarket, parks. Hardwood floors. Very quite and peaceful apartment. No upper floor apartment. 1 apartment per floor in 3 s\u2026","distance":3.281923091257976,"walkMin":66,"score":18,"tags":[],"mapSvg":"<svg class=\"mini-map\" viewBox=\"-60 -60 120 120\" width=\"118\" height=\"118\" aria-hidden=\"true\"><line x1=\"-58\" y1=\"0\" x2=\"58\" y2=\"0\" class=\"mm-axis\"/><line x1=\"0\" y1=\"-58\" x2=\"0\" y2=\"58\" class=\"mm-axis\"/><circle cx=\"0\" cy=\"0\" r=\"13\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"26\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"39\" class=\"mm-ring\"/><circle cx=\"0\" cy=\"0\" r=\"52\" class=\"mm-ring\"/><line x1=\"0\" y1=\"0\" x2=\"-35.15\" y2=\"-24.18\" class=\"mm-line\"/><text x=\"-12.47\" y=\"-17.50\" class=\"mm-distance\">3.3 mi<\/text><circle cx=\"0\" cy=\"0\" r=\"4\" class=\"mm-campus\"><title>NYU Tandon \u00b7 370 Jay St<\/title><\/circle><circle cx=\"-35.15\" cy=\"-24.18\" r=\"3.5\" class=\"mm-listing\"><title>This listing<\/title><\/circle><text x=\"0\" y=\"-49\" class=\"mm-cardinal\">N<\/text><\/svg>"}]</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-const MEDIANS = {"1": 1060, "0": 1100};
+const MEDIANS = {"1": 1070, "0": 1100};
 const CAMPUS = [40.6929, -73.9870];
 
 (function () {
@@ -675,12 +730,13 @@ const CAMPUS = [40.6929, -73.9870];
     score:    (a, b) => (b.score || 0) - (a.score || 0),
     price:    (a, b) => (a.price || 9e9) - (b.price || 9e9),
     distance: (a, b) => (a.distance || 9e9) - (b.distance || 9e9),
-    posted:   (a, b) => (b.posted || '').localeCompare(a.posted || ''),
+    posted:   (a, b) => (b.posted || '0').localeCompare(a.posted || '0'),
   };
 
   function freshnessFor(posted) {
     if (!posted) return null;
-    const d = new Date(posted);
+    const [y, m, day] = posted.split('-').map(Number);
+    const d = new Date(y, m - 1, day);
     const ageDays = (Date.now() - d.getTime()) / 86400000;
     if (ageDays < 1.2) return 'fresh';
     return null;
@@ -708,14 +764,16 @@ const CAMPUS = [40.6929, -73.9870];
     const anomaly = priceAnomaly(l.price, l.bedrooms);
 
     return `
-      <li class="entry${hidden ? ' is-hidden' : ''}" data-url="${esc(l.url)}">
+      <li class="entry${hidden ? ' is-hidden' : ''}${starred ? ' is-starred' : ''}" data-url="${esc(l.url)}">
         <div class="${numClass}">
           ${pad(l.n)}
           <div class="entry-num-meta${fresh ? ' fresh' : ''}">${fresh ? 'Fresh' : 'Score ' + l.score}</div>
+          ${l.mapSvg || ''}
+          <div class="mm-caption${starred ? ' is-starred' : ''}">listing → 370 jay</div>
         </div>
         <div class="entry-body">
           <div class="entry-meta">
-            <span class="price">$${(l.price || 0).toLocaleString()}</span>
+            <span class="price">${l.price != null ? '$' + l.price.toLocaleString() : '$?'}</span>
             ${esc(bedLabel)}
             <span class="sep">·</span>${esc(distance)}${walking ? ' (' + esc(walking) + ')' : ''}
             <span class="sep">·</span>${esc(l.neighborhood || 'Brooklyn')}
@@ -811,7 +869,7 @@ const CAMPUS = [40.6929, -73.9870];
         icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] })
       });
       marker.bindPopup(
-        `<b>${esc(l.title)}</b><br>$${(l.price || 0).toLocaleString()} · ${l.bedrooms === 0 ? 'Studio' : l.bedrooms + 'BR'} · Score ${l.score}<br><a href="${esc(l.url)}" target="_blank">View →</a>`
+        `<b>${esc(l.title)}</b><br>${l.price != null ? '$' + l.price.toLocaleString() : '$?'} · ${l.bedrooms === 0 ? 'Studio' : l.bedrooms + 'BR'} · Score ${l.score}<br><a href="${esc(l.url)}" target="_blank">View →</a>`
       );
       marker.addTo(markerLayer);
     });
@@ -847,12 +905,11 @@ const CAMPUS = [40.6929, -73.9870];
     const url = entry.dataset.url;
     const act = btn.dataset.act;
 
+    const toggle = (set) => set.has(url) ? set.delete(url) : set.add(url);
     if (act === 'star') {
-      state.starred.has(url) ? state.starred.delete(url) : state.starred.add(url);
-      persist(); render();
+      toggle(state.starred); persist(); render();
     } else if (act === 'hide') {
-      state.hidden.has(url) ? state.hidden.delete(url) : state.hidden.add(url);
-      persist(); render();
+      toggle(state.hidden); persist(); render();
     } else if (act === 'note') {
       entry.querySelector('.note-area').classList.toggle('open');
     } else if (act === 'save-note') {
