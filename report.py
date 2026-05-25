@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import html as _html
 import json
+import math
 import os
 import re
 import statistics
@@ -35,7 +36,6 @@ _TEXT_SPAM = re.compile(
     r'\b(text|call|email|reply|contact)\s+(me|us|now|asap|today|immediately|fast)\b[^.\n]{0,40}',
     re.I,
 )
-_QR_PREFIX = re.compile(r'^QR Code Link to This Post\s*')
 _REPEAT_NONWORD = re.compile(r'([^\w\s])\1{2,}')
 _WS = re.compile(r'\s+')
 
@@ -46,7 +46,6 @@ def _clean_description(text: str) -> str:
     text = _PHONE.sub("", text)
     text = _URL.sub("", text)
     text = _TEXT_SPAM.sub("", text)
-    text = _QR_PREFIX.sub("", text)
     text = _REPEAT_NONWORD.sub(r"\1", text)
     return _WS.sub(" ", text).strip()
 
@@ -78,6 +77,52 @@ _KEYWORD_TAGS = [
 ]
 _TRAIN_RX = re.compile(r'\b([FACR])\s*(train|line)\b', re.I)
 
+_CAMPUS_LAT = 40.6929
+_CAMPUS_LNG = -73.9870
+_MILES_PER_DEG_LAT = 69.0
+_MILES_PER_DEG_LNG = 52.5  # ≈ 69 * cos(40.69°), valid at NYC latitude
+
+
+def _mini_map_svg(lat, lng):
+    """Stylized A→B SVG showing listing position relative to NYU Tandon (370 Jay St).
+
+    118×118, north-up, origin = campus at (0, 0). Concentric mile rings (1/2/3/4 mi)
+    plus a dashed crimson line from campus to the listing with the distance labeled.
+    Returns '' for listings without coordinates."""
+    if lat is None or lng is None:
+        return ""
+    dx_miles = (lng - _CAMPUS_LNG) * _MILES_PER_DEG_LNG
+    dy_miles = (lat - _CAMPUS_LAT) * _MILES_PER_DEG_LAT
+    dist_miles = math.hypot(dx_miles, dy_miles)
+    scale_px = 13.0  # 13px per mile → 4 mi fits in 52px
+    dx = dx_miles * scale_px
+    dy = -dy_miles * scale_px  # SVG y inverted: north up = -y
+    r_px = math.hypot(dx, dy)
+    if r_px > 54:
+        dx, dy = dx * 54 / r_px, dy * 54 / r_px
+    mx, my = dx / 2, dy / 2
+    # Offset the label perpendicular to the line so it doesn't sit on top of it
+    if r_px > 1:
+        nx = -dy / r_px * 9
+        ny = dx / r_px * 9
+    else:
+        nx = ny = 0
+    return (
+        '<svg class="mini-map" viewBox="-60 -60 120 120" width="118" height="118" aria-hidden="true">'
+        '<line x1="-58" y1="0" x2="58" y2="0" class="mm-axis"/>'
+        '<line x1="0" y1="-58" x2="0" y2="58" class="mm-axis"/>'
+        '<circle cx="0" cy="0" r="13" class="mm-ring"/>'
+        '<circle cx="0" cy="0" r="26" class="mm-ring"/>'
+        '<circle cx="0" cy="0" r="39" class="mm-ring"/>'
+        '<circle cx="0" cy="0" r="52" class="mm-ring"/>'
+        f'<line x1="0" y1="0" x2="{dx:.2f}" y2="{dy:.2f}" class="mm-line"/>'
+        f'<text x="{mx + nx:.2f}" y="{my + ny + 2:.2f}" class="mm-distance">{dist_miles:.1f} mi</text>'
+        '<circle cx="0" cy="0" r="4" class="mm-campus"><title>NYU Tandon · 370 Jay St</title></circle>'
+        f'<circle cx="{dx:.2f}" cy="{dy:.2f}" r="3.5" class="mm-listing"><title>This listing</title></circle>'
+        '<text x="0" y="-49" class="mm-cardinal">N</text>'
+        '</svg>'
+    )
+
 
 def _extract_tags(title, description):
     haystack = f"{title}\n{description}"
@@ -91,6 +136,8 @@ def _extract_tags(title, description):
 def _payload(listings):
     out = []
     for i, l in enumerate(listings, 1):
+        cleaned = _clean_description(l.description)
+        desc = cleaned[:340] + ("…" if len(cleaned) > 340 else "")
         out.append({
             "n": i,
             "url": l.url,
@@ -102,11 +149,12 @@ def _payload(listings):
             "lng": l.lng,
             "posted": l.posted_date,
             "postedRel": _relative_posted(l.posted_date),
-            "description": _clean_description(l.description)[:340],
+            "description": desc,
             "distance": l.distance_miles,
             "walkMin": _walking_minutes(l.distance_miles),
             "score": l.score,
             "tags": _extract_tags(l.title, l.description or ""),
+            "mapSvg": _mini_map_svg(l.lat, l.lng),
         })
     return out
 
@@ -374,8 +422,8 @@ body {
 
 .entry {
   display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 1.5rem;
+  grid-template-columns: 140px 1fr;
+  gap: 1.75rem;
   padding: 1.75rem 0;
   border-bottom: 1px solid var(--rule-soft);
   position: relative;
@@ -396,15 +444,19 @@ body {
 
 .entry-num {
   font-family: var(--serif-display);
-  font-size: 2.75rem;
+  font-size: 1.85rem;
   font-weight: 400;
   font-variation-settings: "opsz" 96;
   color: var(--ink-mute);
   letter-spacing: -0.04em;
   line-height: 1;
-  text-align: right;
+  text-align: center;
   padding-top: 0.1rem;
   user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
 }
 .entry-num.score-high { color: var(--crimson); font-weight: 600; }
 .entry-num.score-mid { color: var(--ink); }
@@ -415,11 +467,62 @@ body {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-mute);
-  text-align: right;
-  margin-top: 0.4rem;
+  text-align: center;
   font-weight: 500;
+  margin-top: -0.15rem;
 }
 .entry-num-meta.fresh { color: var(--crimson); }
+
+/* Per-row mini-map: stylized A-to-B diagram, listing -> NYU Tandon (370 Jay) */
+.mini-map {
+  display: block;
+  margin-top: 0.3rem;
+  overflow: visible;
+}
+.mm-axis { stroke: var(--rule-soft); stroke-width: 0.5; stroke-dasharray: 2 3; }
+.mm-ring { fill: none; stroke: var(--rule-soft); stroke-width: 0.5; stroke-dasharray: 1.5 2.5; }
+.mm-line { stroke: var(--crimson); stroke-width: 1.1; opacity: 0.55; stroke-dasharray: 3 2; }
+.mm-distance {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 7px;
+  font-weight: 600;
+  fill: var(--ink);
+  paint-order: stroke fill;
+  stroke: var(--paper);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  text-anchor: middle;
+}
+.mm-campus {
+  fill: var(--crimson);
+  stroke: var(--paper);
+  stroke-width: 1.3;
+}
+.mm-listing {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 1;
+}
+.entry.is-starred .mm-listing { fill: var(--crimson); }
+.entry.is-hidden .mini-map { opacity: 0.4; }
+.mm-cardinal {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 6.5px;
+  font-weight: 600;
+  fill: var(--ink-mute);
+  text-anchor: middle;
+  letter-spacing: 0.15em;
+}
+.mm-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-top: -0.1rem;
+  white-space: nowrap;
+}
+.mm-caption.is-starred { color: var(--crimson); }
 
 .entry-body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
 
@@ -723,12 +826,13 @@ JS = r"""
     score:    (a, b) => (b.score || 0) - (a.score || 0),
     price:    (a, b) => (a.price || 9e9) - (b.price || 9e9),
     distance: (a, b) => (a.distance || 9e9) - (b.distance || 9e9),
-    posted:   (a, b) => (b.posted || '').localeCompare(a.posted || ''),
+    posted:   (a, b) => (b.posted || '0').localeCompare(a.posted || '0'),
   };
 
   function freshnessFor(posted) {
     if (!posted) return null;
-    const d = new Date(posted);
+    const [y, m, day] = posted.split('-').map(Number);
+    const d = new Date(y, m - 1, day);
     const ageDays = (Date.now() - d.getTime()) / 86400000;
     if (ageDays < 1.2) return 'fresh';
     return null;
@@ -756,14 +860,16 @@ JS = r"""
     const anomaly = priceAnomaly(l.price, l.bedrooms);
 
     return `
-      <li class="entry${hidden ? ' is-hidden' : ''}" data-url="${esc(l.url)}">
+      <li class="entry${hidden ? ' is-hidden' : ''}${starred ? ' is-starred' : ''}" data-url="${esc(l.url)}">
         <div class="${numClass}">
           ${pad(l.n)}
           <div class="entry-num-meta${fresh ? ' fresh' : ''}">${fresh ? 'Fresh' : 'Score ' + l.score}</div>
+          ${l.mapSvg || ''}
+          <div class="mm-caption${starred ? ' is-starred' : ''}">listing → 370 jay</div>
         </div>
         <div class="entry-body">
           <div class="entry-meta">
-            <span class="price">$${(l.price || 0).toLocaleString()}</span>
+            <span class="price">${l.price != null ? '$' + l.price.toLocaleString() : '$?'}</span>
             ${esc(bedLabel)}
             <span class="sep">·</span>${esc(distance)}${walking ? ' (' + esc(walking) + ')' : ''}
             <span class="sep">·</span>${esc(l.neighborhood || 'Brooklyn')}
@@ -859,7 +965,7 @@ JS = r"""
         icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] })
       });
       marker.bindPopup(
-        `<b>${esc(l.title)}</b><br>$${(l.price || 0).toLocaleString()} · ${l.bedrooms === 0 ? 'Studio' : l.bedrooms + 'BR'} · Score ${l.score}<br><a href="${esc(l.url)}" target="_blank">View →</a>`
+        `<b>${esc(l.title)}</b><br>${l.price != null ? '$' + l.price.toLocaleString() : '$?'} · ${l.bedrooms === 0 ? 'Studio' : l.bedrooms + 'BR'} · Score ${l.score}<br><a href="${esc(l.url)}" target="_blank">View →</a>`
       );
       marker.addTo(markerLayer);
     });
@@ -895,12 +1001,11 @@ JS = r"""
     const url = entry.dataset.url;
     const act = btn.dataset.act;
 
+    const toggle = (set) => set.has(url) ? set.delete(url) : set.add(url);
     if (act === 'star') {
-      state.starred.has(url) ? state.starred.delete(url) : state.starred.add(url);
-      persist(); render();
+      toggle(state.starred); persist(); render();
     } else if (act === 'hide') {
-      state.hidden.has(url) ? state.hidden.delete(url) : state.hidden.add(url);
-      persist(); render();
+      toggle(state.hidden); persist(); render();
     } else if (act === 'note') {
       entry.querySelector('.note-area').classList.toggle('open');
     } else if (act === 'save-note') {
@@ -983,7 +1088,7 @@ def write_html(path: str, listings: "list[Listing]") -> None:
     </div>
     <div class="stat">
       <span class="stat-label">Cheapest</span>
-      <span class="stat-value">${cheapest:,}</span>
+      <span class="stat-value">{f"${cheapest:,}" if cheapest is not None else "—"}</span>
     </div>
     <div class="stat">
       <span class="stat-label">Closest</span>
@@ -1045,7 +1150,7 @@ def write_html(path: str, listings: "list[Listing]") -> None:
   </footer>
 </div>
 
-<script id="payload" type="application/json">{json.dumps(payload, separators=(',', ':'))}</script>
+<script id="payload" type="application/json">{json.dumps(payload, separators=(',', ':')).replace('</', '<\\/')}</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
