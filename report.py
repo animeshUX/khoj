@@ -1,63 +1,126 @@
-"""HTML report renderer — turns a list of Listings into a self-contained .html file
-that anyone can open in a browser without installing anything."""
+"""Render an editorial-newspaper dashboard for browsing scraped apartments.
+
+A single self-contained HTML page with embedded CSS/JS. Light cream-paper theme,
+Fraunces/Newsreader/JetBrains Mono. No external assets except Google Fonts and
+Leaflet — both via CDN.
+
+Information architecture:
+- Inbox      — all visible listings, filterable
+- Shortlist  — starred listings, comparison view
+- Map        — Leaflet pins, color-coded by star/hide state
+
+Per-listing thinking aids:
+- Cleaned descriptions (phone-number + TEXT-ASAP spam stripped)
+- Walking-time estimate, posted-relative time, anomaly hints vs median price
+- Matched-keyword chips (Student-friendly / No guarantor / Furnished / etc.)
+- Star / Hide / Note actions, all persisted to localStorage per device.
+"""
 from __future__ import annotations
 
 import html as _html
+import json
 import os
+import re
+import statistics
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from scraper import Listing
 
-HTML_STYLES = """
-:root { color-scheme: light; }
-* { box-sizing: border-box; }
-body { margin: 0; font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-       color: #1a1a1a; background: #fafaf8; }
-header { padding: 40px 24px 24px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid #e5e3dd; }
-header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.01em; }
-header .meta { margin: 0; color: #6b6b6b; font-size: 14px; }
-main { max-width: 1100px; margin: 0 auto; padding: 24px; display: grid;
-       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
-.card { background: #fff; border: 1px solid #e5e3dd; border-radius: 6px; padding: 18px 20px;
-        display: flex; flex-direction: column; gap: 10px; }
-.card .row1 { display: flex; align-items: baseline; gap: 12px; }
-.score { font-weight: 600; font-size: 13px; padding: 4px 10px; border-radius: 99px; letter-spacing: 0.02em; }
-.score.high { background: #e7f3eb; color: #155724; }
-.score.mid  { background: #fff4d6; color: #7a5400; }
-.score.low  { background: #efeeea; color: #555; }
-.price { font-size: 22px; font-weight: 600; }
-.bed { color: #6b6b6b; font-size: 14px; font-weight: 400; margin-left: 4px; }
-.card h2 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 500; }
-.meta { color: #6b6b6b; font-size: 13px; margin: 0; }
-.desc { color: #333; font-size: 14px; margin: 4px 0 0; }
-.btn { align-self: flex-start; margin-top: 6px; display: inline-block; padding: 7px 14px;
-       background: #111; color: #fff; text-decoration: none; border-radius: 4px; font-size: 13px; }
-.btn:hover { background: #333; }
-footer { max-width: 1100px; margin: 8px auto 40px; padding: 20px 24px; border-top: 1px solid #e5e3dd;
-         color: #6b6b6b; font-size: 13px; }
-footer h3 { margin: 0 0 8px; color: #1a1a1a; font-size: 14px; font-weight: 600; }
-footer ul { margin: 0; padding-left: 18px; }
-footer a { color: #1a1a1a; }
-@media (max-width: 540px) { main { padding: 12px; } header { padding: 24px 16px 16px; } }
-"""
 
-OTHER_SOURCES = [
-    ("AmberStudent — NYU listings", "https://amberstudent.com/places/search/new-york-university-1811221663188",
-     "managed student housing (per-room, booking-style)"),
-    ("StreetEasy — Brooklyn rentals", "https://streeteasy.com/for-rent/brooklyn/price:1200-3500%7Cbeds%3C=2",
-     "NYC's biggest rental marketplace; brokers + landlords"),
-    ("PadMapper — Brooklyn rentals", "https://www.padmapper.com/apartments/brooklyn-ny?box=-73.99,40.68,-73.97,40.71&maxRent=3500",
-     "aggregator across Craigslist, Zumper, Apartments.com — map view"),
+_PHONE = re.compile(r'(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}')
+_URL = re.compile(r'https?://\S+')
+_TEXT_SPAM = re.compile(
+    r'\b(text|call|email|reply|contact)\s+(me|us|now|asap|today|immediately|fast)\b[^.\n]{0,40}',
+    re.I,
+)
+_QR_PREFIX = re.compile(r'^QR Code Link to This Post\s*')
+_REPEAT_NONWORD = re.compile(r'([^\w\s])\1{2,}')
+_WS = re.compile(r'\s+')
+
+
+def _clean_description(text: str) -> str:
+    if not text:
+        return ""
+    text = _PHONE.sub("", text)
+    text = _URL.sub("", text)
+    text = _TEXT_SPAM.sub("", text)
+    text = _QR_PREFIX.sub("", text)
+    text = _REPEAT_NONWORD.sub(r"\1", text)
+    return _WS.sub(" ", text).strip()
+
+
+def _walking_minutes(miles):
+    return round(miles * 20) if miles is not None else None
+
+
+def _relative_posted(date_str):
+    if not date_str:
+        return ""
+    try:
+        d = datetime.fromisoformat(date_str).date()
+    except ValueError:
+        return date_str
+    delta = (datetime.now().date() - d).days
+    if delta <= 0:
+        return "today"
+    if delta == 1:
+        return "yesterday"
+    return f"{delta} days ago"
+
+
+_KEYWORD_TAGS = [
+    (re.compile(r'\b(students?\s+welcome|nyu|grad\s+student|student[- ]friendly)\b', re.I), "Student-friendly"),
+    (re.compile(r'\bno\s*guarantor', re.I), "No guarantor"),
+    (re.compile(r'\bfurnished\b', re.I), "Furnished"),
+    (re.compile(r'\b(utilities\s+included|all\s+utilities|util\.?\s*incl)\b', re.I), "Utilities incl."),
 ]
+_TRAIN_RX = re.compile(r'\b([FACR])\s*(train|line)\b', re.I)
 
 
-def _tier(score: int) -> str:
-    return "high" if score >= 80 else "mid" if score >= 60 else "low"
+def _extract_tags(title, description):
+    haystack = f"{title}\n{description}"
+    tags = [label for rx, label in _KEYWORD_TAGS if rx.search(haystack)]
+    train = _TRAIN_RX.search(haystack)
+    if train:
+        tags.append(f"{train.group(1).upper()} train")
+    return tags
 
 
-def _read_curated(path: str = "manual_links.txt") -> list[tuple[str, str]]:
+def _payload(listings):
+    out = []
+    for i, l in enumerate(listings, 1):
+        out.append({
+            "n": i,
+            "url": l.url,
+            "title": l.title,
+            "price": l.price,
+            "bedrooms": l.bedrooms,
+            "neighborhood": l.neighborhood,
+            "lat": l.lat,
+            "lng": l.lng,
+            "posted": l.posted_date,
+            "postedRel": _relative_posted(l.posted_date),
+            "description": _clean_description(l.description)[:340],
+            "distance": l.distance_miles,
+            "walkMin": _walking_minutes(l.distance_miles),
+            "score": l.score,
+            "tags": _extract_tags(l.title, l.description or ""),
+        })
+    return out
+
+
+def _market_medians(listings):
+    """Median price per bedroom count — used to flag anomalies."""
+    by_bed = {}
+    for l in listings:
+        if l.price and l.bedrooms is not None:
+            by_bed.setdefault(l.bedrooms, []).append(l.price)
+    return {str(k): int(statistics.median(v)) for k, v in by_bed.items() if v}
+
+
+def _read_curated(path: str = "manual_links.txt"):
     if not os.path.exists(path):
         return []
     out = []
@@ -70,31 +133,802 @@ def _read_curated(path: str = "manual_links.txt") -> list[tuple[str, str]]:
     return out
 
 
+OTHER_SOURCES = [
+    ("AmberStudent", "https://amberstudent.com/places/search/new-york-university-1811221663188",
+     "managed student housing (per-room, booking-style)"),
+    ("StreetEasy", "https://streeteasy.com/for-rent/brooklyn/price:800-1500%7Cbeds%3C=2",
+     "NYC's biggest rental marketplace"),
+    ("PadMapper", "https://www.padmapper.com/apartments/brooklyn-ny?maxRent=1500",
+     "aggregator with map view"),
+]
+
+
+CSS = r"""
+:root {
+  --paper: #F3ECDE;
+  --paper-tint: #E8DFCC;
+  --paper-warm: #EDE3CE;
+  --ink: #1A1612;
+  --ink-soft: #5A4E42;
+  --ink-mute: #93857A;
+  --rule: #B8AB97;
+  --rule-soft: #D6CBB6;
+  --crimson: #8C2026;
+  --crimson-deep: #6B1A1F;
+  --crimson-tint: rgba(140, 32, 38, 0.06);
+  --gold: #7A5C1E;
+  --serif-display: 'Fraunces', Georgia, serif;
+  --serif-body: 'Newsreader', Georgia, serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif-body);
+  font-size: 16px;
+  line-height: 1.55;
+  font-feature-settings: "kern", "liga", "calt";
+  background-image:
+    radial-gradient(circle at 90% 10%, rgba(140, 32, 38, 0.02), transparent 40%),
+    radial-gradient(circle at 10% 90%, rgba(122, 92, 30, 0.03), transparent 40%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='240' height='240' filter='url(%23n)' opacity='0.06'/></svg>");
+}
+
+.paper { max-width: 1180px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+
+/* ------------------------------------------------------------------ Masthead */
+.masthead {
+  border-top: 8px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  padding: 1rem 0 1.75rem;
+  margin-bottom: 2rem;
+  position: relative;
+}
+.masthead::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -5px;
+  border-bottom: 1px solid var(--rule);
+}
+.masthead-strap {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  padding-bottom: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+.masthead-title {
+  font-family: var(--serif-display);
+  font-size: clamp(2.5rem, 6vw, 5.25rem);
+  font-weight: 500;
+  font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 1;
+  letter-spacing: -0.025em;
+  margin: 0;
+  line-height: 0.94;
+}
+.masthead-title em {
+  font-style: italic;
+  color: var(--crimson);
+  font-weight: 400;
+  font-variation-settings: "opsz" 96, "SOFT" 100, "WONK" 1;
+}
+.masthead-sub {
+  font-family: var(--serif-body);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  max-width: 60ch;
+  margin: 1.1rem 0 0;
+  font-variation-settings: "opsz" 16;
+}
+
+/* ----------------------------------------------------------------- Stats row */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 1.5rem 0 2rem;
+}
+.stat {
+  background: var(--paper-warm);
+  padding: 0.85rem 1rem 0.95rem;
+}
+.stat-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 0.3rem;
+}
+.stat-value {
+  font-family: var(--serif-display);
+  font-size: 1.65rem;
+  font-weight: 500;
+  font-variation-settings: "opsz" 72;
+  letter-spacing: -0.01em;
+}
+
+/* ----------------------------------------------------------------------- Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+}
+.tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.7rem 1.3rem 0.7rem 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 120ms ease;
+}
+.tab + .tab { padding-left: 1.5rem; }
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--ink); border-bottom-color: var(--crimson); }
+.tab-count {
+  display: inline-block;
+  font-size: 0.62rem;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0.15rem 0.4rem;
+  margin-left: 0.5rem;
+  letter-spacing: 0;
+  border-radius: 1px;
+  vertical-align: 2px;
+}
+.tab.active .tab-count { background: var(--crimson); }
+
+/* ----------------------------------------------------------- Filters + sort */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.chip-group { display: flex; gap: 0.3rem; align-items: center; }
+.chip-group::before {
+  content: attr(data-label);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-right: 0.5rem;
+}
+.chip {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  padding: 0.32rem 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 100ms ease;
+  border-radius: 1px;
+}
+.chip:hover { background: var(--paper-warm); color: var(--ink); }
+.chip.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.sort-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+.sort-wrap label {
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+#sort {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 0.35rem 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* ----------------------------------------------------------------- Views */
+.view { display: none; }
+.view.active { display: block; }
+
+/* ----------------------------------------------------------- Listings */
+.listings { list-style: none; padding: 0; margin: 0; }
+
+.entry {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 1.5rem;
+  padding: 1.75rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+  position: relative;
+  animation: enter 380ms ease both;
+}
+.entry:nth-child(1) { animation-delay: 0ms; }
+.entry:nth-child(2) { animation-delay: 40ms; }
+.entry:nth-child(3) { animation-delay: 80ms; }
+.entry:nth-child(4) { animation-delay: 120ms; }
+.entry:nth-child(5) { animation-delay: 160ms; }
+.entry:nth-child(n+6) { animation-delay: 200ms; }
+.entry:hover { background: var(--crimson-tint); }
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.entry-num {
+  font-family: var(--serif-display);
+  font-size: 2.75rem;
+  font-weight: 400;
+  font-variation-settings: "opsz" 96;
+  color: var(--ink-mute);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-align: right;
+  padding-top: 0.1rem;
+  user-select: none;
+}
+.entry-num.score-high { color: var(--crimson); font-weight: 600; }
+.entry-num.score-mid { color: var(--ink); }
+
+.entry-num-meta {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  text-align: right;
+  margin-top: 0.4rem;
+  font-weight: 500;
+}
+.entry-num-meta.fresh { color: var(--crimson); }
+
+.entry-body { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+
+.entry-meta {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  letter-spacing: 0.03em;
+  line-height: 1.45;
+}
+.entry-meta .price {
+  font-family: var(--serif-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--ink);
+  font-variation-settings: "opsz" 36;
+  letter-spacing: -0.01em;
+  margin-right: 0.4rem;
+}
+.entry-meta .sep { color: var(--ink-mute); margin: 0 0.4rem; }
+.entry-meta .anomaly-low {
+  color: var(--crimson);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.entry-meta .anomaly-high {
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.entry-title {
+  font-family: var(--serif-display);
+  font-size: 1.45rem;
+  font-weight: 500;
+  font-variation-settings: "opsz" 36, "SOFT" 30, "WONK" 0;
+  line-height: 1.18;
+  letter-spacing: -0.012em;
+  margin: 0.2rem 0 0;
+  color: var(--ink);
+}
+.entry-title a {
+  color: inherit;
+  text-decoration: none;
+  background-image: linear-gradient(var(--crimson), var(--crimson));
+  background-size: 0 1px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: background-size 220ms ease;
+  padding-bottom: 1px;
+}
+.entry-title a:hover { background-size: 100% 1px; color: var(--crimson); }
+
+.entry-desc {
+  font-family: var(--serif-body);
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  margin: 0.35rem 0 0;
+  max-width: 60ch;
+  font-variation-settings: "opsz" 14;
+}
+
+.entry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+}
+.tag {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  background: var(--paper-warm);
+  border-radius: 1px;
+}
+
+.entry-actions {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.act {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  padding: 0.4rem 0.85rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 100ms ease;
+  border-radius: 1px;
+  white-space: nowrap;
+}
+.act:hover {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.act-primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.act-primary:hover { background: var(--crimson); border-color: var(--crimson); }
+
+.act-star.starred {
+  background: var(--crimson);
+  color: var(--paper);
+  border-color: var(--crimson);
+}
+.act-star.starred:hover { background: var(--crimson-deep); border-color: var(--crimson-deep); }
+
+/* Hidden state */
+.entry.is-hidden { opacity: 0.32; }
+.entry.is-hidden::after {
+  content: "DISMISSED";
+  position: absolute;
+  top: 50%; left: 30%;
+  transform: translate(-50%, -50%) rotate(-7deg);
+  font-family: var(--serif-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--crimson);
+  opacity: 0.35;
+  letter-spacing: 0.22em;
+  pointer-events: none;
+  border: 4px double var(--crimson);
+  padding: 0.4rem 1.2rem;
+}
+
+/* Note area */
+.note-area {
+  display: none;
+  margin-top: 0.75rem;
+  max-width: 56ch;
+}
+.note-area.open { display: block; }
+.note-area textarea {
+  width: 100%;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  font-family: var(--serif-body);
+  font-style: italic;
+  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  resize: vertical;
+  min-height: 70px;
+  color: var(--ink);
+}
+.note-area-actions { display: flex; gap: 0.4rem; margin-top: 0.45rem; }
+
+.note-display {
+  font-family: var(--serif-body);
+  font-style: italic;
+  color: var(--ink-soft);
+  background: var(--paper-warm);
+  padding: 0.55rem 0.85rem 0.55rem 1rem;
+  border-left: 3px solid var(--gold);
+  margin-top: 0.6rem;
+  font-size: 0.95rem;
+  max-width: 60ch;
+}
+.note-display::before {
+  content: "Note · ";
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.62rem;
+  color: var(--gold);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-right: 0.2rem;
+}
+
+/* Empty states */
+.empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--ink-soft);
+  font-style: italic;
+  font-family: var(--serif-body);
+  font-size: 1.05rem;
+}
+
+/* ----------------------------------------------------------------- Map */
+#map {
+  height: 520px;
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--paper-tint);
+}
+.leaflet-popup-content { font-family: var(--serif-body); }
+.leaflet-popup-content b { font-family: var(--serif-display); font-weight: 600; }
+.leaflet-popup-content a { color: var(--crimson); }
+
+.khoj-pin {
+  background: var(--ink);
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.khoj-pin.is-campus {
+  background: var(--crimson);
+  width: 20px; height: 20px;
+  box-shadow: 0 0 0 4px var(--paper), 0 2px 6px rgba(140,32,38,0.4);
+}
+.khoj-pin.is-starred { background: var(--crimson); }
+.khoj-pin.is-hidden { background: var(--ink-mute); opacity: 0.5; }
+
+/* ----------------------------------------------------------- Colophon */
+.colophon {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--serif-body);
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+}
+.colophon h3 {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 1.5rem 0 0.5rem;
+  font-weight: 500;
+}
+.colophon ul { padding-left: 1.25rem; margin: 0.25rem 0 1rem; }
+.colophon li { margin: 0.3rem 0; }
+.colophon a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--rule); }
+.colophon a:hover { text-decoration-color: var(--crimson); color: var(--crimson); }
+.colophon .small {
+  margin-top: 1.5rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--ink-mute);
+  letter-spacing: 0.06em;
+}
+
+/* ----------------------------------------------------------- Responsive */
+@media (max-width: 720px) {
+  .paper { padding: 1.5rem 1rem 3rem; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .entry { grid-template-columns: 60px 1fr; gap: 1rem; padding: 1.25rem 0; }
+  .entry-num { font-size: 2rem; }
+  .controls { flex-direction: column; align-items: stretch; }
+  .sort-wrap { margin-left: 0; justify-content: space-between; }
+  .chip-group { flex-wrap: wrap; }
+  .masthead-title { font-size: 2.5rem; }
+}
+"""
+
+
+JS = r"""
+(function () {
+  const PAYLOAD = JSON.parse(document.getElementById('payload').textContent);
+  const PREFIX = 'khoj.';
+  const state = {
+    starred: new Set(JSON.parse(localStorage.getItem(PREFIX + 'starred') || '[]')),
+    hidden:  new Set(JSON.parse(localStorage.getItem(PREFIX + 'hidden')  || '[]')),
+    notes:   JSON.parse(localStorage.getItem(PREFIX + 'notes') || '{}'),
+    tab: 'inbox',
+    bed: 'all',
+    price: 'all',
+    sort: 'score',
+  };
+
+  function persist() {
+    localStorage.setItem(PREFIX + 'starred', JSON.stringify([...state.starred]));
+    localStorage.setItem(PREFIX + 'hidden',  JSON.stringify([...state.hidden]));
+    localStorage.setItem(PREFIX + 'notes',   JSON.stringify(state.notes));
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function pad(n) { return String(n).padStart(3, '0'); }
+
+  function applyFilters(list) {
+    return list.filter(l => {
+      if (state.bed !== 'all' && String(l.bedrooms) !== state.bed) return false;
+      if (state.price === 'under1200' && (!l.price || l.price >= 1200)) return false;
+      if (state.price === '1200to1500' && (!l.price || l.price < 1200 || l.price > 1500)) return false;
+      return true;
+    });
+  }
+
+  const SORTERS = {
+    score:    (a, b) => (b.score || 0) - (a.score || 0),
+    price:    (a, b) => (a.price || 9e9) - (b.price || 9e9),
+    distance: (a, b) => (a.distance || 9e9) - (b.distance || 9e9),
+    posted:   (a, b) => (b.posted || '').localeCompare(a.posted || ''),
+  };
+
+  function freshnessFor(posted) {
+    if (!posted) return null;
+    const d = new Date(posted);
+    const ageDays = (Date.now() - d.getTime()) / 86400000;
+    if (ageDays < 1.2) return 'fresh';
+    return null;
+  }
+
+  function priceAnomaly(price, bedrooms) {
+    const median = MEDIANS[String(bedrooms)];
+    if (!median || !price) return '';
+    const ratio = price / median;
+    if (ratio < 0.88) return `<span class="anomaly-low">↓ ${Math.round((1 - ratio) * 100)}% under median</span>`;
+    if (ratio > 1.12) return `<span class="anomaly-high">↑ ${Math.round((ratio - 1) * 100)}% over median</span>`;
+    return '';
+  }
+
+  function entryHTML(l) {
+    const starred = state.starred.has(l.url);
+    const hidden = state.hidden.has(l.url);
+    const note = state.notes[l.url];
+    const bedLabel = l.bedrooms === 0 ? 'Studio' : (l.bedrooms != null ? l.bedrooms + ' BR' : '?');
+    const walking = l.walkMin ? `${l.walkMin} min walk` : '';
+    const distance = l.distance != null ? `${l.distance.toFixed(2)} mi` : '?';
+    const fresh = freshnessFor(l.posted);
+    const numClass = 'entry-num ' + (l.score >= 40 ? 'score-high' : l.score >= 20 ? 'score-mid' : '');
+    const tags = (l.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    const anomaly = priceAnomaly(l.price, l.bedrooms);
+
+    return `
+      <li class="entry${hidden ? ' is-hidden' : ''}" data-url="${esc(l.url)}">
+        <div class="${numClass}">
+          ${pad(l.n)}
+          <div class="entry-num-meta${fresh ? ' fresh' : ''}">${fresh ? 'Fresh' : 'Score ' + l.score}</div>
+        </div>
+        <div class="entry-body">
+          <div class="entry-meta">
+            <span class="price">$${(l.price || 0).toLocaleString()}</span>
+            ${esc(bedLabel)}
+            <span class="sep">·</span>${esc(distance)}${walking ? ' (' + esc(walking) + ')' : ''}
+            <span class="sep">·</span>${esc(l.neighborhood || 'Brooklyn')}
+            <span class="sep">·</span>posted ${esc(l.postedRel || '?')}
+            ${anomaly ? '<span class="sep">·</span>' + anomaly : ''}
+          </div>
+          <h2 class="entry-title"><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></h2>
+          ${l.description ? `<p class="entry-desc">${esc(l.description)}</p>` : ''}
+          ${tags ? `<div class="entry-tags">${tags}</div>` : ''}
+          ${note ? `<div class="note-display">${esc(note)}</div>` : ''}
+          <div class="entry-actions">
+            <a class="act act-primary" href="${esc(l.url)}" target="_blank" rel="noopener">View on Craigslist →</a>
+            <button class="act act-star${starred ? ' starred' : ''}" data-act="star">★ ${starred ? 'Starred' : 'Star'}</button>
+            <button class="act" data-act="hide">${hidden ? 'Restore' : 'Hide'}</button>
+            <button class="act" data-act="note">${note ? '✎ Edit Note' : '✎ Note'}</button>
+          </div>
+          <div class="note-area">
+            <textarea placeholder="What stood out about this listing?">${esc(note || '')}</textarea>
+            <div class="note-area-actions">
+              <button class="act act-primary" data-act="save-note">Save</button>
+              <button class="act" data-act="cancel-note">Cancel</button>
+              ${note ? '<button class="act" data-act="delete-note">Delete</button>' : ''}
+            </div>
+          </div>
+        </div>
+      </li>
+    `;
+  }
+
+  function render() {
+    // Tab state
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === state.tab));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + state.tab));
+
+    // Header counts
+    const visible = PAYLOAD.filter(l => !state.hidden.has(l.url)).length;
+    document.getElementById('inbox-count').textContent = visible;
+    document.getElementById('short-count').textContent = state.starred.size;
+    document.getElementById('shortlist-stat').textContent = state.starred.size;
+
+    if (state.tab === 'inbox') {
+      const list = applyFilters(PAYLOAD.filter(l => !state.hidden.has(l.url)));
+      list.sort(SORTERS[state.sort] || SORTERS.score);
+      document.getElementById('listings').innerHTML =
+        list.length ? list.map(entryHTML).join('')
+                    : '<p class="empty">No listings match the current filters.</p>';
+    } else if (state.tab === 'shortlist') {
+      const list = applyFilters(PAYLOAD.filter(l => state.starred.has(l.url)));
+      list.sort(SORTERS[state.sort] || SORTERS.score);
+      const el = document.getElementById('shortlist-listings');
+      const empty = document.getElementById('shortlist-empty');
+      if (list.length === 0) {
+        el.innerHTML = '';
+        empty.style.display = 'block';
+      } else {
+        el.innerHTML = list.map(entryHTML).join('');
+        empty.style.display = 'none';
+      }
+    } else if (state.tab === 'map') {
+      mountMap();
+    }
+  }
+
+  // ------- Map (lazy-mounted, once) --------------------------------------
+  let mapMounted = false;
+  let mapInstance;
+  function mountMap() {
+    if (mapMounted) { refreshMapMarkers(); return; }
+    mapMounted = true;
+    mapInstance = L.map('map', { scrollWheelZoom: false }).setView(CAMPUS, 13);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19,
+    }).addTo(mapInstance);
+    L.marker(CAMPUS, {
+      icon: L.divIcon({ className: 'khoj-pin is-campus', iconSize: [20, 20] }),
+      zIndexOffset: 1000,
+    }).addTo(mapInstance).bindPopup('<b>NYU Tandon</b><br>370 Jay St');
+    refreshMapMarkers();
+    const coords = PAYLOAD.filter(l => l.lat != null && l.lng != null).map(l => [l.lat, l.lng]);
+    coords.push(CAMPUS);
+    if (coords.length > 1) mapInstance.fitBounds(coords, { padding: [40, 40] });
+  }
+
+  let markerLayer;
+  function refreshMapMarkers() {
+    if (markerLayer) markerLayer.remove();
+    markerLayer = L.layerGroup().addTo(mapInstance);
+    PAYLOAD.forEach(l => {
+      if (l.lat == null || l.lng == null) return;
+      const cls = state.hidden.has(l.url) ? 'is-hidden' : state.starred.has(l.url) ? 'is-starred' : '';
+      const marker = L.marker([l.lat, l.lng], {
+        icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] })
+      });
+      marker.bindPopup(
+        `<b>${esc(l.title)}</b><br>$${(l.price || 0).toLocaleString()} · ${l.bedrooms === 0 ? 'Studio' : l.bedrooms + 'BR'} · Score ${l.score}<br><a href="${esc(l.url)}" target="_blank">View →</a>`
+      );
+      marker.addTo(markerLayer);
+    });
+  }
+
+  // ------- Event wiring --------------------------------------------------
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => { state.tab = tab.dataset.tab; render(); });
+  });
+
+  document.querySelectorAll('.chip-group').forEach(group => {
+    const filterName = group.dataset.filter;
+    group.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state[filterName] = chip.dataset.val;
+        render();
+      });
+    });
+  });
+
+  document.getElementById('sort').addEventListener('change', e => {
+    state.sort = e.target.value;
+    render();
+  });
+
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const entry = btn.closest('.entry');
+    if (!entry) return;
+    const url = entry.dataset.url;
+    const act = btn.dataset.act;
+
+    if (act === 'star') {
+      state.starred.has(url) ? state.starred.delete(url) : state.starred.add(url);
+      persist(); render();
+    } else if (act === 'hide') {
+      state.hidden.has(url) ? state.hidden.delete(url) : state.hidden.add(url);
+      persist(); render();
+    } else if (act === 'note') {
+      entry.querySelector('.note-area').classList.toggle('open');
+    } else if (act === 'save-note') {
+      const txt = entry.querySelector('textarea').value.trim();
+      if (txt) state.notes[url] = txt; else delete state.notes[url];
+      persist(); render();
+    } else if (act === 'cancel-note') {
+      entry.querySelector('.note-area').classList.remove('open');
+    } else if (act === 'delete-note') {
+      delete state.notes[url];
+      persist(); render();
+    }
+  });
+
+  render();
+})();
+"""
+
+
 def write_html(path: str, listings: "list[Listing]") -> None:
-    """Write a self-contained HTML report. No external assets — share the file as-is."""
+    """Write a self-contained dashboard HTML. State persists in localStorage."""
     e = _html.escape
     date_str = datetime.now().date().isoformat()
-    cards = []
-    for l in listings:
-        bed = "Studio" if l.bedrooms == 0 else f"{l.bedrooms}BR"
-        dist = f"{l.distance_miles:.2f} mi" if l.distance_miles is not None else "?"
-        desc = (l.description or "")[:280]
-        if l.description and len(l.description) > 280:
-            desc += "…"
-        cards.append(
-            f'<article class="card">'
-            f'<div class="row1"><span class="score {_tier(l.score)}">Score {l.score}</span>'
-            f'<span class="price">${l.price:,}<span class="bed">· {e(bed)}</span></span></div>'
-            f'<h2>{e(l.title)}</h2>'
-            f'<p class="meta">{e(l.neighborhood or "Brooklyn")} · {e(dist)} from NYU Tandon · posted {e(l.posted_date)}</p>'
-            f'<p class="desc">{e(desc)}</p>'
-            f'<a class="btn" href="{e(l.url)}" target="_blank" rel="noopener">View on Craigslist →</a>'
-            f'</article>'
-        )
-    other_items = "".join(
-        f'<li><a href="{e(url)}" target="_blank" rel="noopener">{e(name)}</a> — {e(note)}</li>'
-        for name, url, note in OTHER_SOURCES
-    )
+    issue_num = datetime.now().toordinal() % 1000  # arbitrary running counter
+    payload = _payload(listings)
+    medians = _market_medians(listings)
+    closest = min((l.distance_miles for l in listings if l.distance_miles is not None), default=None)
+    cheapest = min((l.price for l in listings if l.price), default=None)
     curated = _read_curated()
     curated_block = ""
     if curated:
@@ -102,23 +936,125 @@ def write_html(path: str, listings: "list[Listing]") -> None:
             f'<li><a href="{e(url)}" target="_blank" rel="noopener">{e(note or url)}</a></li>'
             for url, note in curated
         )
-        curated_block = (
-            f'<h3>Hand-picked listings (submitted directly)</h3><ul>{items}</ul>'
-        )
-    body = (
-        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        f'<title>Apartments near NYU Tandon · {date_str}</title>'
-        f'<style>{HTML_STYLES}</style></head><body>'
-        '<header><h1>Apartments near NYU Tandon</h1>'
-        f'<p class="meta">{len(listings)} listings · within 1.5 mi of 370 Jay St · '
-        f'sorted by fit score · generated {date_str}</p></header>'
-        f'<main>{"".join(cards) or "<p>No listings matched the filters.</p>"}</main>'
-        f'<footer>{curated_block}'
-        f'<h3>Other places worth checking manually</h3><ul>{other_items}</ul>'
-        '<p>This report covers Craigslist only. The links above cover product types Craigslist misses '
-        '(managed student housing, broker listings, aggregators).</p></footer>'
-        '</body></html>'
+        curated_block = f'<h3>Hand-picked listings</h3><ul>{items}</ul>'
+
+    other_items = "".join(
+        f'<li><a href="{e(url)}" target="_blank" rel="noopener">{e(name)}</a> — {e(note)}</li>'
+        for name, url, note in OTHER_SOURCES
     )
+
+    fonts_link = (
+        'https://fonts.googleapis.com/css2?'
+        'family=Fraunces:opsz,wght@9..144,400..700&'
+        'family=Newsreader:opsz,wght@6..72,400;6..72,500&'
+        'family=Newsreader:opsz,ital,wght@6..72,1,400&'
+        'family=JetBrains+Mono:wght@400;500;600&display=swap'
+    )
+
+    body = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Brooklyn Apartment Inquirer · {date_str}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="{fonts_link}" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>{CSS}</style>
+</head>
+<body>
+<div class="paper">
+  <header class="masthead">
+    <div class="masthead-strap">
+      <span>BROOKLYN RENTALS · NYU TANDON BEAT</span>
+      <span>VOL. I · NO. {issue_num}</span>
+      <span>{date_str}</span>
+    </div>
+    <h1 class="masthead-title">The Brooklyn <em>Apartment</em> Inquirer</h1>
+    <p class="masthead-sub">A daily digest of rentals near 370 Jay Street, filtered for student budgets ($800–$1,500) and stripped of telemarketing noise.</p>
+  </header>
+
+  <section class="stats">
+    <div class="stat">
+      <span class="stat-label">Listings</span>
+      <span class="stat-value">{len(payload)}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Cheapest</span>
+      <span class="stat-value">${cheapest:,}</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Closest</span>
+      <span class="stat-value">{f"{closest:.2f}" if closest is not None else "—"} <span style="font-size:0.7em;color:var(--ink-mute);">mi</span></span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Shortlist</span>
+      <span class="stat-value" id="shortlist-stat">0</span>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">{len(payload)}</span></button>
+    <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
+    <button class="tab" data-tab="map" role="tab">Map</button>
+  </nav>
+
+  <section class="controls" id="controls">
+    <div class="chip-group" data-filter="bed" data-label="Beds">
+      <button class="chip active" data-val="all">All</button>
+      <button class="chip" data-val="0">Studio</button>
+      <button class="chip" data-val="1">1 BR</button>
+      <button class="chip" data-val="2">2 BR</button>
+    </div>
+    <div class="chip-group" data-filter="price" data-label="Price">
+      <button class="chip active" data-val="all">Any</button>
+      <button class="chip" data-val="under1200">&lt; $1,200</button>
+      <button class="chip" data-val="1200to1500">$1,200–1,500</button>
+    </div>
+    <div class="sort-wrap">
+      <label for="sort">Sort</label>
+      <select id="sort">
+        <option value="score">Best fit</option>
+        <option value="price">Cheapest first</option>
+        <option value="distance">Closest first</option>
+        <option value="posted">Newest first</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="view active" id="view-inbox">
+    <ol class="listings" id="listings"></ol>
+  </section>
+
+  <section class="view" id="view-shortlist">
+    <ol class="listings" id="shortlist-listings"></ol>
+    <p class="empty" id="shortlist-empty" style="display:none">No starred listings yet. Star ★ entries in the Inbox to build a shortlist.</p>
+  </section>
+
+  <section class="view" id="view-map">
+    <div id="map"></div>
+  </section>
+
+  <footer class="colophon">
+    {curated_block}
+    <h3>Other places worth checking manually</h3>
+    <ul>{other_items}</ul>
+    <p class="small">Khoj · refreshed daily by GitHub Actions at 13:00 UTC · <a href="https://github.com/animeshUX/khoj" target="_blank" rel="noopener">source</a> · state persists per device in localStorage</p>
+  </footer>
+</div>
+
+<script id="payload" type="application/json">{json.dumps(payload, separators=(',', ':'))}</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const MEDIANS = {json.dumps(medians)};
+const CAMPUS = [40.6929, -73.9870];
+{JS}
+</script>
+</body>
+</html>
+"""
     with open(path, "w", encoding="utf-8") as f:
         f.write(body)
