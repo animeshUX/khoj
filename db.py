@@ -67,6 +67,35 @@ def all_listings(order_by: str = "score DESC, submitted_at DESC") -> list[sqlite
         return list(c.execute(f"SELECT * FROM submissions ORDER BY {order_by}"))
 
 
+def bulk_add(listings, source: str) -> tuple[int, int]:
+    """Insert many listings at once with INSERT OR IGNORE. Returns (n_new, n_skipped).
+
+    Intended for the daily scraper run — re-finding the same URL is a no-op, which
+    preserves any status tags the user has already set on previously-seen listings.
+    """
+    if not listings:
+        return 0, 0
+    now = datetime.now().isoformat(timespec="seconds")
+    rows = [
+        (now, "", "", l.url, source, (l.title or "")[:500], l.price, l.bedrooms,
+         l.neighborhood or "", l.distance_miles, l.posted_date or "",
+         (l.description or "")[:2000], l.score)
+        for l in listings
+    ]
+    with _conn() as c:
+        before = c.execute("SELECT COUNT(*) FROM submissions").fetchone()[0]
+        c.executemany(
+            """INSERT OR IGNORE INTO submissions
+               (submitted_at, submitter, note, url, source, title, price, bedrooms,
+                neighborhood, distance_miles, posted_date, description, score)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            rows,
+        )
+        after = c.execute("SELECT COUNT(*) FROM submissions").fetchone()[0]
+    n_new = after - before
+    return n_new, len(listings) - n_new
+
+
 def set_status(submission_id: int, status: str) -> None:
     if status not in STATUSES:
         raise ValueError(f"invalid status: {status}")
