@@ -1,9 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
-apartments_*.csv
-apartments_*.html
-sample_report.*
-submissions.db
-service_account.json
-.streamlit/secrets.toml
+# Local-run outputs at repo root (the committed copies live in docs/)
+/apartments_*.csv
+/apartments_*.html
+/sample_report.*

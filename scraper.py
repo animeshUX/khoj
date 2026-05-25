@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import re
 import sys
 import time
@@ -295,6 +296,20 @@ def diagnose() -> None:
     )
 
 
+def _read_manual_urls(path: str) -> list[str]:
+    """Read URLs from a text file (one per line, blank/# comment lines ignored). Missing file = empty list."""
+    if not os.path.exists(path):
+        return []
+    urls = []
+    for line in open(path, encoding="utf-8"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        # Allow "URL | optional note" — we just take the URL for now
+        urls.append(line.split("|", 1)[0].strip())
+    return urls
+
+
 def print_top(listings: list[Listing], n: int = 10) -> None:
     print(f"\nTop {min(n, len(listings))} of {len(listings)} listings\n" + "-" * 72)
     for l in listings[:n]:
@@ -314,8 +329,10 @@ def main():
                     help="Fetch the first search page and exit — verifies network/IP isn't blocked.")
     ap.add_argument("--diagnose", action="store_true",
                     help="Probe multiple Craigslist endpoints to identify what's blocked. Run this when --sanity-check fails.")
-    ap.add_argument("--no-db", action="store_true",
-                    help="Skip writing kept listings into submissions.db (the Streamlit app's store).")
+    ap.add_argument("--pages-mode", action="store_true",
+                    help="Write outputs into docs/ (latest + dated archives) for GitHub Pages hosting.")
+    ap.add_argument("--manual-urls", default="manual_urls.txt",
+                    help="Path to a file of extra URLs to include (one per line, # comments allowed). Default: manual_urls.txt")
     args = ap.parse_args()
 
     if args.sanity_check:
@@ -354,19 +371,52 @@ def main():
         listing.score = score(listing)
         results.append(listing)
 
+    # Manually-submitted URLs (e.g., from aunt/uncle texting Animesh a link). These bypass
+    # the hard filters — if someone took the time to submit it, surface it regardless of
+    # price/distance. Score still applies so it ranks alongside scraped listings.
+    manual_urls = _read_manual_urls(args.manual_urls)
+    n_manual_new = n_manual_dup = 0
+    for url in manual_urls:
+        if url in seen_urls:
+            n_manual_dup += 1
+            continue
+        seen_urls.add(url)
+        try:
+            html = fetch(url)
+        except (requests.RequestException, RuntimeError) as e:
+            print(f"[skip manual] {url}: {e}", file=sys.stderr)
+            continue
+        listing = parse_detail(html, {"url": url, "title": "", "price": None, "posted": None})
+        if listing is None:
+            print(f"[skip manual] {url}: could not parse", file=sys.stderr)
+            continue
+        listing.score = score(listing)
+        results.append(listing)
+        n_manual_new += 1
+    if manual_urls:
+        print(f"Manual URLs: {n_manual_new} added, {n_manual_dup} already in scrape results ({args.manual_urls})")
+
     results.sort(key=lambda l: l.score, reverse=True)
-    stem = args.out or f"apartments_{datetime.now().date().isoformat()}"
-    if stem.endswith(".csv"):
-        stem = stem[:-4]
-    csv_path, html_path = f"{stem}.csv", f"{stem}.html"
-    write_csv(csv_path, results)
-    write_html(html_path, results)
-    print(f"\nWrote {len(results)} listings to {csv_path} and {html_path}")
-    if not args.no_db:
-        import store  # dispatcher picks Sheets if configured, SQLite otherwise
-        n_new, n_dup = store.bulk_add(results, source="craigslist-auto")
-        print(f"Store ({store.BACKEND}): {n_new} new listings added, {n_dup} already there.")
-    print(f"Tip: open {html_path} in a browser, or share it with anyone — it's self-contained.")
+
+    if args.pages_mode:
+        os.makedirs("docs", exist_ok=True)
+        date = datetime.now().date().isoformat()
+        # Latest (fixed name, what GitHub Pages serves) + dated archive
+        write_html("docs/index.html", results)
+        write_csv("docs/apartments_latest.csv", results)
+        write_html(f"docs/apartments_{date}.html", results)
+        write_csv(f"docs/apartments_{date}.csv", results)
+        print(f"\nWrote {len(results)} listings to docs/index.html (+ dated archive for {date})")
+    else:
+        stem = args.out or f"apartments_{datetime.now().date().isoformat()}"
+        if stem.endswith(".csv"):
+            stem = stem[:-4]
+        csv_path, html_path = f"{stem}.csv", f"{stem}.html"
+        write_csv(csv_path, results)
+        write_html(html_path, results)
+        print(f"\nWrote {len(results)} listings to {csv_path} and {html_path}")
+        print(f"Tip: open {html_path} in a browser, or share it with anyone — it's self-contained.")
+
     print_top(results, 10)
 
 
