@@ -788,8 +788,8 @@ body {
     position: sticky;
     top: 1.25rem;
     height: calc(100vh - 2.5rem);
-    min-height: 620px;
-    max-height: 960px;
+    min-height: min(92vh, 820px);
+    /* no max-height cap — let it use the full viewport on tall screens */
   }
   #map-side {
     width: 100%;
@@ -887,6 +887,23 @@ body {
 }
 .leaflet-tooltip.station-tooltip b { font-family: var(--serif-display); font-weight: 600; }
 .leaflet-tooltip.station-tooltip::before { display: none; }    /* hide arrow */
+
+/* Permanent campus label — always-visible anchor for the whole map */
+.leaflet-tooltip.campus-tooltip {
+  font-family: var(--mono);
+  font-size: var(--type-micro);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--paper);
+  border: 1.5px solid var(--crimson);
+  color: var(--crimson);
+  font-weight: 600;
+  padding: 0.3rem 0.55rem;
+  border-radius: 1px;
+  box-shadow: 0 2px 8px rgba(140, 32, 38, 0.25);
+  pointer-events: none;
+}
+.leaflet-tooltip.campus-tooltip::before { display: none; }   /* no arrow */
 
 /* Layer control — overlay toggles, top-right of the map */
 .leaflet-control-layers {
@@ -1209,7 +1226,12 @@ JS = r"""
       icon: L.divIcon({ className: 'khoj-pin is-campus', iconSize: [20, 20] }),
       zIndexOffset: 1000,
       interactive: false,
-    }).addTo(mapInstance).bindPopup('<b>NYU Tandon</b><br>370 Jay St');
+    }).addTo(mapInstance).bindTooltip('NYU Tandon · 370 Jay', {
+      permanent: true,
+      direction: 'right',
+      offset: [14, 0],
+      className: 'campus-tooltip',
+    });
     refreshMapMarkers();
     const coords = PAYLOAD.filter(l => l.lat != null && l.lng != null).map(l => [l.lat, l.lng]);
     coords.push(CAMPUS);
