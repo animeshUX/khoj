@@ -1,5 +1,3 @@
-import { createState } from "./state.js";
-
 // Tile providers — all free, no API key.
 const TILE_PROVIDERS = {
   streets: {
