@@ -41,6 +41,7 @@ const REGISTRY = {
       return L.geoJSON(geo, {
         style: (f) => ({
           color: '#8C2026',
+          fillColor: '#8C2026',
           fillOpacity: Math.min(0.5, (f.properties?.felonies || 0) / 400),
           weight: 1,
         }),

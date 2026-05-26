@@ -9,7 +9,8 @@ function esc(s) {
 const SORTS = {
   score:   (a, b) => (b.score ?? 0) - (a.score ?? 0),
   price:   (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity),
-  commute: (a, b) => 0,
+  commute: (a, b) => (a.enrichment?.commute?.total_min ?? Infinity)
+                   - (b.enrichment?.commute?.total_min ?? Infinity),
   posted:  (a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""),
 };
 
@@ -73,6 +74,11 @@ export function createList(state, mountId = "khoj-list", map = null) {
   state.subscribe("filters", render);
   state.subscribe("starred", render);
   state.subscribe("hidden",  render);
+  state.subscribe("selectedId", (id) => {
+    for (const row of root.querySelectorAll(".khoj-row")) {
+      row.classList.toggle("is-active", row.dataset.id === id);
+    }
+  });
   render();
   return { render };
 }

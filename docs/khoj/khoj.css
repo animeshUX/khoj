@@ -645,19 +645,19 @@ body {
 }
 
 /* Linked entry ↔ pin selection state + clickability affordance */
-.entry { cursor: pointer; transition: background 140ms ease; position: relative; }
-.entry:hover { background: rgba(140, 32, 38, 0.025); }
-.entry:hover .entry-title a { color: var(--crimson); }
-.entry.is-active { background: rgba(140, 32, 38, 0.06); }
-.entry.is-active::before {
+.khoj-row { cursor: pointer; transition: background 140ms ease; position: relative; }
+.khoj-row:hover { background: rgba(140, 32, 38, 0.025); }
+.khoj-row:hover .entry-title a { color: var(--crimson); }
+.khoj-row.is-active { background: rgba(140, 32, 38, 0.06); }
+.khoj-row.is-active::before {
   content: "";
   position: absolute;
   left: 0; top: 1rem; bottom: 1rem;
   width: 3px;
   background: var(--crimson);
 }
-.entry.is-active .entry-num,
-.entry.is-active .entry-num-meta { color: var(--crimson); }
+.khoj-row.is-active .entry-num,
+.khoj-row.is-active .entry-num-meta { color: var(--crimson); }
 
 /* Action buttons — focus ring for keyboard nav, harden the affordance */
 .act:focus-visible {
@@ -794,7 +794,7 @@ body {
 
 /* ----------------------------------------------------------- Detail panel */
 #khoj-panel {
-  position: absolute; top: 50px; right: 0; bottom: 0; width: 420px;
+  position: absolute; top: 0; right: 0; bottom: 0; width: 420px;
   background: var(--paper); border-left: 1px solid var(--rule);
   padding: 24px; overflow-y: auto; z-index: 500;
   transform: translateX(100%); transition: transform 200ms ease;

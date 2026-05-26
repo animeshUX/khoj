@@ -23,5 +23,3 @@ createKeys(state);
 state.subscribe("selectedId", (id) => {
   document.getElementById("khoj-map").classList.toggle("dimmed", !!id);
 });
-
-window.KHOJ_overlays = overlays;   // exposed for filter-bar Task 16
