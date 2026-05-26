@@ -29,7 +29,7 @@ export function createPanel(state, mountId = "khoj-panel") {
       <header>
         <h2>${esc(l.title)}</h2>
         <p class="khoj-panel-meta">
-          ${l.price ? "$" + l.price : "—"} · ${l.bedrooms == null ? "?" : (l.bedrooms === 0 ? "Studio" : l.bedrooms + "BR")}
+          ${l.price ? "$" + esc(l.price) : "—"} · ${l.bedrooms == null ? "?" : (l.bedrooms === 0 ? "Studio" : l.bedrooms + "BR")}
           · <a href="${esc(l.url)}" target="_blank" rel="noopener">source ↗</a>
         </p>
         <p class="khoj-panel-addr">${esc(l.address ?? "")}</p>
