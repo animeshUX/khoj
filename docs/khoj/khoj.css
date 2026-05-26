@@ -847,7 +847,7 @@ body {
 }
 
 /* Leaflet explorer: app shell */
-#khoj-app { display: grid; grid-template-columns: 400px 1fr; height: calc(100vh - 50px); }
+#khoj-app { display: grid; grid-template-columns: 400px 1fr; height: calc(100vh - 50px); position: relative; }
 #khoj-topbar { height: 50px; border-bottom: 1px solid var(--rule); padding: 0 16px;
                display: flex; align-items: center; gap: 12px; }
 

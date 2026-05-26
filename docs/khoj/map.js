@@ -221,13 +221,13 @@ export function createMap(state, mountId = 'khoj-map') {
     markerLayer = L.layerGroup().addTo(mapInstance);
     markerByUrl.clear();
 
-    const starred = state.get('starred') || new Set();
-    const hidden  = state.get('hidden')  || new Set();
+    const starred = state.get('starred') || [];
+    const hidden  = state.get('hidden')  || [];
 
     PAYLOAD.forEach(l => {
       if (l.lat == null || l.lng == null) return;
-      const cls = hidden.has(l.url) ? 'is-hidden'
-                : starred.has(l.url) ? 'is-starred'
+      const cls = hidden.includes(l.url) ? 'is-hidden'
+                : starred.includes(l.url) ? 'is-starred'
                 : '';
       const marker = L.marker([l.lat, l.lng], {
         icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] }),
