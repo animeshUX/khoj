@@ -1,5 +1,3 @@
-const PAYLOAD = JSON.parse(document.getElementById('payload').textContent);
-
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -10,7 +8,7 @@ const SORTS = {
   score:   (a, b) => (b.score ?? 0) - (a.score ?? 0),
   price:   (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity),
   commute: (a, b) => 0,
-  posted:  (a, b) => (b.posted ?? "").localeCompare(a.posted ?? ""),
+  posted:  (a, b) => (b.posted_at ?? "").localeCompare(a.posted_at ?? ""),
 };
 
 export function createList(state, mountId = "khoj-list", map = null) {
@@ -18,9 +16,10 @@ export function createList(state, mountId = "khoj-list", map = null) {
 
   function rowHtml(l) {
     const price = l.price ? `$${l.price}` : "—";
-    const beds = l.bedrooms == null ? "?" : (l.bedrooms === 0 ? "Studio" : `${l.bedrooms}BR`);
-    const score = l.score == null ? "" : `<span class="khoj-row-score">${l.score}</span>`;
-    return `<article class="khoj-row" data-id="${l.url}" tabindex="0"
+    const beds = l.beds == null ? "?" : (l.beds === 0 ? "Studio" : `${l.beds}BR`);
+    const scorePct = l.score == null ? "" : Math.round(l.score * 100);
+    const score = scorePct === "" ? "" : `<span class="khoj-row-score">${scorePct}</span>`;
+    return `<article class="khoj-row" data-id="${esc(l.id)}" tabindex="0"
               aria-label="${esc(l.title)}, ${price}">
       ${score}
       <h3>${esc(l.title)}</h3>
@@ -31,7 +30,7 @@ export function createList(state, mountId = "khoj-list", map = null) {
 
   function render() {
     const sortKey = state.get("sort") || "score";
-    const sorted = [...PAYLOAD].sort(SORTS[sortKey] || SORTS.score);
+    const sorted = [...window.KHOJ.listings].sort(SORTS[sortKey] || SORTS.score);
     root.innerHTML = sorted.map(rowHtml).join("");
   }
 
