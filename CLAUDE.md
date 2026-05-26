@@ -4,7 +4,7 @@ This file is loaded automatically into every Claude Code session opened in this 
 
 ## What this is
 
-Khoj is a daily-updated Craigslist apartment report for an incoming NYU Tandon **student** looking for a place near 370 Jay St, Brooklyn. The whole thing is a Python scraper + an HTML report + a GitHub Actions cron + GitHub Pages. **That's the entire architecture, and it's intentional.** It went through several rounds of "what if we also..." before settling here — see *History* below.
+Khoj is a daily-updated Craigslist apartment report for a student looking for a place near a specific Brooklyn campus address (coordinates pinned in `scraper.py:CAMPUS_COORDS`). The whole thing is a Python scraper + an HTML report + a GitHub Actions cron + GitHub Pages. **That's the entire architecture, and it's intentional.** It went through several rounds of "what if we also..." before settling here — see *History* below.
 
 **Target:** apartments under **$1,500/month** within ~**30-minute commute** of campus (geodesic ~4 mi proxy). Studio / 1BR / 2BR full units, not room shares. The original constants ($1,200–$3,500, 1.5 mi) were too tight for actual student affordability — they returned listings nobody could afford.
 
@@ -63,7 +63,7 @@ A second markdown-based intake (Obsidian Web Clipper → `submissions/*.md`) is 
 
 ## DO NOT — privacy + scope
 
-- **Never copy the Observatory design system into this repo.** The Observatory DS at `~/Development/observatory/field-data/` is private; this Khoj repo is public (GitHub Pages serves it). Don't vendor `dist/current/`, `tokens.css`, `patterns/`, or anything else from that directory into `docs/` or anywhere else that ships to GitHub. If a session needs styling inspiration, write fresh CSS using free Google Fonts (Fraunces, etc.) and Khoj-specific tokens — don't re-export Animesh's private DS by accident.
+- **Never copy the Observatory design system into this repo.** The Observatory DS at `~/Development/observatory/field-data/` is a private local project; this Khoj repo is public (GitHub Pages serves it). Don't vendor `dist/current/`, `tokens.css`, `patterns/`, or anything else from that directory into `docs/` or anywhere else that ships to GitHub. If a session needs styling inspiration, write fresh CSS using free Google Fonts (Fraunces, etc.) and Khoj-specific tokens — don't re-export the private DS by accident.
 
 ## DO NOT
 
@@ -90,10 +90,10 @@ Inspect one live detail page and re-confirm before changing parse logic.
 ## History (what we tried and dropped)
 
 1. **RSS-based search** → blocked by Craigslist; switched to the HTML SEO block.
-2. **Streamlit submission app** (branch: `submission-app`) → built and working, but family submits URLs a few times a week — not enough to justify a deployed web service.
+2. **Streamlit submission app** (branch: `submission-app`) → built and working, but URL submissions arrive a few times a week — not enough to justify a deployed web service.
 3. **Auto-DB-write from scraper** (branch: `scraper-db-write`) → reasonable layer, but only useful if the Streamlit app is in play.
-4. **Google Sheets backing store** (branch: `sheets-backend`) → blocked by Google Cloud's billing requirement, which the user won't supply for a personal project.
-5. **AmberStudent scraping** → considered, dropped: data is a JS object literal (not JSON), and listings are mostly PBSA (per-room) which is a different product than what brother needs.
+4. **Google Sheets backing store** (branch: `sheets-backend`) → blocked by Google Cloud's billing requirement, which the maintainer won't supply for a personal project.
+5. **AmberStudent scraping** → considered, dropped: data is a JS object literal (not JSON), and listings are mostly PBSA (per-room) which is a different product than what this tool is targeting.
 6. **StreetEasy scraping** → Cloudflare-blocked, needs paid Apify. Linked out in the report footer for manual browsing instead.
 
 The current architecture — cron + Pages + a text file — was the answer the user landed on after evaluating the above. Don't reverse-engineer the journey on a new session and re-suggest the rejected paths.
