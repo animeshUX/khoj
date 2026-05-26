@@ -1,0 +1,211 @@
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const ROUTE_COLOR = {
+  F: '#FF6319', A: '#2850AD', C: '#2850AD', R: '#FCCC0A',
+};
+
+const REGISTRY = {
+  noise: {
+    path: './data/nta-noise.geojson',
+    build(geo) {
+      const dens = geo.features.map(f => f.properties.noise_per_sqmi).sort((a, b) => a - b);
+      const p90 = dens[Math.floor(dens.length * 0.9)] || 1;
+      return L.geoJSON(geo, {
+        style: (feat) => {
+          const d = feat.properties.noise_per_sqmi || 0;
+          const ratio = Math.min(d / p90, 1);
+          return {
+            color: '#8C2026', weight: 0.4, opacity: 0.35,
+            fillColor: '#8C2026', fillOpacity: 0.04 + ratio * 0.42,
+          };
+        },
+        onEachFeature: (feat, layer) => {
+          const p = feat.properties;
+          layer.bindTooltip(
+            `<b>${esc(p.name)}</b><br>${esc(p.borough)}<br>` +
+            `${(p.noise_90d || 0).toLocaleString()} noise complaints / 90d<br>` +
+            `${(p.noise_per_sqmi || 0).toLocaleString()} per sq mi`,
+            { sticky: true, className: 'station-tooltip', direction: 'top' }
+          );
+        },
+      });
+    },
+  },
+  crime: {
+    path: './data/crime.geojson',
+    build(geo) {
+      return L.geoJSON(geo, {
+        style: (f) => ({
+          color: '#8C2026',
+          fillColor: '#8C2026',
+          fillOpacity: Math.min(0.5, (f.properties?.felonies || 0) / 400),
+          weight: 1,
+        }),
+      });
+    },
+  },
+  parks: {
+    path: './data/parks.geojson',
+    build(geo) {
+      return L.geoJSON(geo, {
+        style: {
+          color: '#3F5F3F', weight: 0.4, opacity: 0.55,
+          fillColor: '#7BAA7B', fillOpacity: 0.42,
+        },
+        onEachFeature: (feat, layer) => {
+          const p = feat.properties;
+          if (p.name) {
+            layer.bindTooltip(
+              `<b>${esc(p.name)}</b><br>${(p.acres || 0).toFixed(1)} acres`,
+              { sticky: true, className: 'station-tooltip', direction: 'top' }
+            );
+          }
+        },
+      });
+    },
+  },
+  subway_lines: {
+    path: './data/subway-lines.geojson',
+    build(geo) {
+      return L.geoJSON(geo, {
+        style: { color: '#1A1612', weight: 1.4, opacity: 0.22 },
+        interactive: false,
+      });
+    },
+  },
+  subway_stations: {
+    path: './data/subway-stations.geojson',
+    build(geo) {
+      return L.geoJSON(geo, {
+        pointToLayer: (feat, latlng) => {
+          const routes = (feat.properties.daytime_routes || '').split(' ').filter(Boolean);
+          const color = routes.map(r => ROUTE_COLOR[r]).find(Boolean);
+          const isRelevant = !!color;
+          return L.circleMarker(latlng, {
+            radius: isRelevant ? 3.5 : 2,
+            color: '#fff', weight: 0.7,
+            fillColor: color || '#93857A',
+            fillOpacity: isRelevant ? 0.92 : 0.5,
+            interactive: isRelevant,
+          });
+        },
+        onEachFeature: (feat, layer) => {
+          if (layer.bindTooltip) {
+            layer.bindTooltip(
+              `<b>${esc(feat.properties.stop_name || '')}</b><br>${esc(feat.properties.daytime_routes || '—')}`,
+              { direction: 'top', className: 'station-tooltip' }
+            );
+          }
+        },
+      });
+    },
+  },
+  commute_zone: {
+    path: './data/commute-zone.geojson',
+    build(geo) {
+      return L.geoJSON(geo, {
+        style: {
+          color: '#8C2026', weight: 1.2, opacity: 0.6, dashArray: '6 4',
+          fillColor: '#8C2026', fillOpacity: 0.055,
+        },
+        interactive: false,
+      });
+    },
+  },
+};
+
+export function createOverlays(state, mapApi) {
+  const leafletMap = mapApi.map;
+  const layers = {};   // name -> L.GeoJSON
+  const loaded = {};   // name -> Promise<L.GeoJSON>
+
+  async function load(name) {
+    if (loaded[name]) return loaded[name];
+    loaded[name] = fetch(REGISTRY[name].path)
+      .then(r => {
+        if (!r.ok) throw new Error(`${REGISTRY[name].path}: HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(geo => {
+        const layer = REGISTRY[name].build(geo);
+        layers[name] = layer;
+        return layer;
+      })
+      .catch(err => { delete loaded[name]; throw err; });
+    return loaded[name];
+  }
+
+  async function show(name) {
+    const layer = await load(name);
+    if (!leafletMap.hasLayer(layer)) {
+      layer.addTo(leafletMap);
+      if (name === 'commute_zone') layer.bringToBack();
+    }
+  }
+
+  function hide(name) {
+    if (layers[name] && leafletMap.hasLayer(layers[name])) leafletMap.removeLayer(layers[name]);
+  }
+
+  async function toggle(name, on) { on ? await show(name) : hide(name); }
+
+  // Restore persisted layer state on init
+  const initial = state.get('layers') || { subway_lines: true, subway_stations: true, commute_zone: true };
+  state.set('layers', initial);
+  for (const [name, on] of Object.entries(initial)) if (on) show(name);
+
+  return { toggle, show, hide };
+}
+
+export function createSelectionOverlays(state, mapApi) {
+  const leafletMap = mapApi.map;
+  let pathLayer = null;
+  let pathLabel = null;
+  let poiLayer = null;
+
+  function clear() {
+    if (pathLayer) { leafletMap.removeLayer(pathLayer); pathLayer = null; }
+    if (pathLabel) { leafletMap.removeLayer(pathLabel); pathLabel = null; }
+    if (poiLayer)  { leafletMap.removeLayer(poiLayer);  poiLayer  = null; }
+  }
+
+  function show(id) {
+    clear();
+    if (!id) return;
+    const l = window.KHOJ.listings.find(x => x.id === id);
+    if (!l) return;
+    const enr = l.enrichment || {};
+
+    // Commute path: listing -> station -> Tandon
+    const st = enr.commute?.station;
+    if (st) {
+      const pts = [[l.lat, l.lng], [st.lat, st.lng],
+                   [window.KHOJ.campus.lat, window.KHOJ.campus.lng]];
+      pathLayer = L.polyline(pts, { color: "#8C2026", weight: 2, dashArray: "6 4", opacity: 0.7 }).addTo(leafletMap);
+      pathLabel = L.tooltip({ permanent: true, direction: "center", className: "khoj-path-label" })
+        .setLatLng([(l.lat + st.lat) / 2, (l.lng + st.lng) / 2])
+        .setContent(`${enr.commute.walk_min}m walk`)
+        .addTo(leafletMap);
+    }
+
+    // POI markers
+    const pois = [
+      ...(enr.food    || []).map(p => ({ ...p, kind: "food"    })),
+      ...(enr.grocery || []).map(p => ({ ...p, kind: "grocery" })),
+    ];
+    poiLayer = L.layerGroup(
+      pois.filter(p => p.lat != null).map(p =>
+        L.circleMarker([p.lat, p.lng], {
+          radius: 5, color: p.kind === "food" ? "#7A5C1E" : "#3a5a40",
+          fillColor: p.kind === "food" ? "#7A5C1E" : "#3a5a40", fillOpacity: 0.8,
+        }).bindTooltip(`${esc(p.name)} (${p.dist_mi?.toFixed(2)}mi)`)),
+    ).addTo(leafletMap);
+  }
+
+  state.subscribe("selectedId", show);
+  return { clear };
+}
