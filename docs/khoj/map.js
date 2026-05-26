@@ -217,13 +217,12 @@ export function createMap(state, mountId = 'khoj-map') {
   }
 
   function refreshMapMarkers() {
-    if (!mapInstance) return;
     if (markerLayer) markerLayer.remove();
     markerLayer = L.layerGroup().addTo(mapInstance);
     markerByUrl.clear();
 
-    const starred = state ? (state.get('starred') || new Set()) : new Set();
-    const hidden  = state ? (state.get('hidden')  || new Set()) : new Set();
+    const starred = state.get('starred') || new Set();
+    const hidden  = state.get('hidden')  || new Set();
 
     PAYLOAD.forEach(l => {
       if (l.lat == null || l.lng == null) return;
@@ -242,7 +241,7 @@ export function createMap(state, mountId = 'khoj-map') {
         `<a href="${esc(l.url)}" target="_blank" rel="noopener">View →</a>`
       );
       marker.on('click', () => {
-        if (state) state.set('selectedId', l.url);
+        state.set('selectedId', l.url);
       });
       marker.addTo(markerLayer);
       markerByUrl.set(l.url, marker);
@@ -278,10 +277,8 @@ export function createMap(state, mountId = 'khoj-map') {
   if (coords.length > 1) mapInstance.fitBounds(coords, { padding: [40, 40] });
 
   // Re-render markers when star/hide state changes
-  if (state) {
-    state.subscribe('starred', () => refreshMapMarkers());
-    state.subscribe('hidden',  () => refreshMapMarkers());
-  }
+  state.subscribe('starred', () => refreshMapMarkers());
+  state.subscribe('hidden',  () => refreshMapMarkers());
 
   return { map: mapInstance, markerByUrl, refreshMapMarkers };
 }
