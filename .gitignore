@@ -9,6 +9,9 @@ __pycache__/
 /session_handoff.md
 /SESSION_HANDOFF.md
 /.claude/
+# Geocode cache — local-only; cron re-fetches on its own runner. Tiny enough
+# we could commit it later if Nominatim politeness becomes an issue.
+/.cache/
 # Web Clipper drops — personal listings, gitignored by default.
 # The submissions/ directory is tracked (with its README + .gitkeep) so the
 # enrichment pipeline knows where to look; only the .md clips themselves stay
