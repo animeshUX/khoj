@@ -835,3 +835,15 @@ body {
   color: var(--crimson); font-family: var(--mono);
   font-size: var(--type-mono); font-weight: 600;
 }
+
+/* ----------------------------------------------------------- Filter chips + topbar */
+.khoj-pin--filtered-out .khoj-pin-dot { opacity: 0.15; }
+.khoj-chip { display: inline-flex; align-items: center; gap: 4px;
+             font-family: var(--mono); font-size: var(--type-small);
+             padding: 4px 10px; border: 1px solid var(--rule); border-radius: 4px; }
+.khoj-chip input[type="number"] { width: 48px; font-family: inherit; font-size: inherit;
+                                    border: none; background: transparent; }
+.khoj-sort { font-family: var(--mono); font-size: var(--type-small);
+             padding: 4px 8px; border: 1px solid var(--rule); }
+.khoj-brand { font-family: var(--serif-display); font-weight: 600; font-size: var(--type-h4); margin-right: 8px; }
+.khoj-count { margin-left: auto; font-family: var(--mono); font-size: var(--type-small); color: var(--ink-mute); }

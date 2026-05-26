@@ -1,3 +1,5 @@
+import { applyFilters } from "./filters.js";
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -30,8 +32,11 @@ export function createList(state, mountId = "khoj-list", map = null) {
 
   function render() {
     const sortKey = state.get("sort") || "score";
-    const sorted = [...window.KHOJ.listings].sort(SORTS[sortKey] || SORTS.score);
+    const visible = applyFilters(window.KHOJ.listings, state);
+    const sorted = visible.sort(SORTS[sortKey] || SORTS.score);
     root.innerHTML = sorted.map(rowHtml).join("");
+    const countEl = document.getElementById("khoj-count");
+    if (countEl) countEl.textContent = `${sorted.length} of ${window.KHOJ.listings.length}`;
   }
 
   root.addEventListener("click", (e) => {
@@ -53,7 +58,10 @@ export function createList(state, mountId = "khoj-list", map = null) {
     if (marker) marker.getElement()?.classList.remove("khoj-pin--hover");
   });
 
-  state.subscribe("sort", render);
+  state.subscribe("sort",    render);
+  state.subscribe("filters", render);
+  state.subscribe("starred", render);
+  state.subscribe("hidden",  render);
   render();
   return { render };
 }
