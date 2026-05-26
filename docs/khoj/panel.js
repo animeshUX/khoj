@@ -50,7 +50,7 @@ export function createPanel(state, mountId = "khoj-panel") {
     if (enr.commute) {
       parts.push(`<div class="enr-block"><h4>Commute</h4>
     <p>${enr.commute.total_min}m — ${enr.commute.walk_min}m walk to
-    ${esc(enr.commute.station?.name ?? "?")} (${(enr.commute.station?.lines || []).join("/")}) → ${enr.commute.rail_min}m rail</p></div>`);
+    ${esc(enr.commute.station?.name ?? "?")} (${(enr.commute.station?.lines || []).map(esc).join("/")}) → ${enr.commute.rail_min}m rail</p></div>`);
     }
     if (enr.crime) {
       parts.push(`<div class="enr-block"><h4>Safety (12mo)</h4>

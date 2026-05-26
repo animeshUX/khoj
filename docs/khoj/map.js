@@ -290,5 +290,5 @@ export function createMap(state, mountId = 'khoj-map') {
   state.subscribe('hidden',  syncFlags);
   syncFlags();
 
-  return { map: mapInstance, markerByUrl, refreshMapMarkers };
+  return { map: mapInstance, markerByUrl };
 }
