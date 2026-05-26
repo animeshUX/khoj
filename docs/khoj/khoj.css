@@ -851,3 +851,23 @@ body {
 /* ----------------------------------------------------------- Empty filter state */
 .khoj-empty { padding: 32px 16px; text-align: center; color: var(--ink-mute); }
 .khoj-empty button { margin-top: 12px; padding: 6px 12px; cursor: pointer; }
+
+@media (max-width: 768px) {
+  #khoj-app { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  #khoj-list {
+    order: 2; max-height: 40vh; border-right: none;
+    border-top: 1px solid var(--rule);
+  }
+  #khoj-list::before {
+    content: ""; display: block; width: 40px; height: 4px;
+    background: var(--rule); border-radius: 2px;
+    margin: 8px auto;
+  }
+  #khoj-panel {
+    top: 0; width: 100vw; height: 100vh; z-index: 1000;
+    padding: 56px 20px 20px;
+  }
+  .khoj-panel-close { top: 16px; right: 16px; font-size: 1.5rem; }
+  #khoj-topbar { flex-wrap: wrap; height: auto; padding: 8px; gap: 6px; }
+  .khoj-layers-control { font-size: var(--type-micro); padding: 6px 8px; }
+}
