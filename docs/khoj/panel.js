@@ -43,6 +43,35 @@ export function createPanel(state, mountId = "khoj-panel") {
     `;
     root.setAttribute("aria-hidden", "false");
 
+    // Populate enrichment block
+    const enr = l.enrichment || {};
+    const mount = root.querySelector("#khoj-panel-enrich");
+    const parts = [];
+    if (enr.commute) {
+      parts.push(`<div class="enr-block"><h4>Commute</h4>
+    <p>${enr.commute.total_min}m — ${enr.commute.walk_min}m walk to
+    ${esc(enr.commute.station?.name ?? "?")} (${(enr.commute.station?.lines || []).join("/")}) → ${enr.commute.rail_min}m rail</p></div>`);
+    }
+    if (enr.crime) {
+      parts.push(`<div class="enr-block"><h4>Safety (12mo)</h4>
+    <p>${enr.crime.total_12mo} total · ${enr.crime.felonies} felonies · ${enr.crime.misd} misd · ${enr.crime.viol} viol</p></div>`);
+    }
+    if (enr.noise) {
+      parts.push(`<div class="enr-block"><h4>Noise (12mo)</h4>
+    <p>${enr.noise.count_12mo} 311 complaints · top: ${esc(enr.noise.top_category)}</p></div>`);
+    }
+    if (enr.food?.length) {
+      const top = enr.food.slice(0, 3).map(f => `${esc(f.name)} (${f.dist_mi.toFixed(2)}mi)`).join(", ");
+      parts.push(`<div class="enr-block"><h4>Indian food</h4><p>${top}</p></div>`);
+    }
+    if (enr.grocery?.length) {
+      const sa = enr.grocery.filter(g => g.south_asian).slice(0, 3);
+      const top = (sa.length ? sa : enr.grocery.slice(0, 3))
+        .map(g => `${esc(g.name)} (${g.dist_mi.toFixed(2)}mi)${g.south_asian ? " ★" : ""}`).join(", ");
+      parts.push(`<div class="enr-block"><h4>Grocery</h4><p>${top}</p></div>`);
+    }
+    mount.innerHTML = parts.join("");
+
     root.querySelector(".khoj-panel-close").addEventListener("click", close);
     root.querySelector("[data-action=star]").addEventListener("click", () => {
       const cur = state.get("starred") || [];
