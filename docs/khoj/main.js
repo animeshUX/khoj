@@ -12,6 +12,7 @@ const state = createState({
 const map = createMap(state, "khoj-map");
 const overlays = createOverlays(state, map);
 createSelectionOverlays(state, map);
+map.mountLayersControl(state, overlays).addTo(map.map);
 createList(state, "khoj-list", map);
 createPanel(state, "khoj-panel");
 

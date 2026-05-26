@@ -745,72 +745,14 @@ body {
 }
 .leaflet-tooltip.campus-tooltip::before { display: none; }   /* no arrow */
 
-/* Layer control — overlay toggles, top-right of the map */
-.leaflet-control-layers {
-  background: var(--paper) !important;
-  border: 1px solid var(--ink) !important;
-  border-radius: 1px !important;
-  box-shadow: 3px 3px 0 var(--paper-tint), 3px 3px 0 1px var(--ink) !important;
-  font-family: var(--mono);
-  font-size: var(--type-micro);
-  color: var(--ink);
+.khoj-layers-control {
+  background: var(--paper); border: 1px solid var(--rule); padding: 10px 12px;
+  font-family: var(--mono); font-size: var(--type-small);
 }
-.leaflet-control-layers-toggle {
-  background-color: var(--paper) !important;
-  background-image: none !important;
-  width: 32px; height: 32px;
-}
-.leaflet-control-layers-toggle::before {
-  content: "LAYERS";
-  display: block;
-  font-family: var(--mono);
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--ink);
-  line-height: 32px;
-  text-align: center;
-}
-.leaflet-control-layers-expanded {
-  padding: 0.65rem 0.85rem 0.7rem !important;
-  min-width: 180px;
-}
-.leaflet-control-layers-expanded::before {
-  content: "OVERLAYS";
-  display: block;
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--rule-soft);
-}
-.leaflet-control-layers-overlays {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.leaflet-control-layers-overlays label {
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: var(--type-micro);
-  letter-spacing: 0.05em;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-.leaflet-control-layers-overlays label:hover { color: var(--crimson); }
-.leaflet-control-layers-overlays input[type="checkbox"] {
-  accent-color: var(--crimson);
-}
-.leaflet-control-layers-separator {
-  border-top: 1px solid var(--rule-soft) !important;
-  margin: 0.4rem 0 !important;
-}
+.khoj-layers-control h4 { margin: 0 0 6px; font-family: var(--serif-display);
+                          font-size: var(--type-small); }
+.khoj-layers-control label { display: block; padding: 2px 0; cursor: pointer; }
+.khoj-layers-control input { margin-right: 6px; }
 
 /* ----------------------------------------------------------- Responsive */
 @media (max-width: 720px) {

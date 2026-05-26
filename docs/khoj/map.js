@@ -169,5 +169,38 @@ export function createMap(state, mountId = 'khoj-map') {
   state.subscribe('hidden',  syncFlags);
   syncFlags();
 
-  return { map: mapInstance, markerByUrl };
+  return { map: mapInstance, markerByUrl, mountLayersControl };
+}
+
+const LAYER_LABELS = {
+  noise:           "Noise",
+  crime:           "Crime",
+  parks:           "Parks",
+  subway_lines:    "Subway lines",
+  subway_stations: "Stations",
+  commute_zone:    "Commute zone",
+};
+
+function mountLayersControl(state, overlaysApi) {
+  const ctrl = L.control({ position: "topright" });
+  ctrl.onAdd = () => {
+    const div = L.DomUtil.create("div", "khoj-layers-control");
+    const layers = state.get("layers") || {};
+    div.innerHTML = "<h4>Layers</h4>" + Object.entries(LAYER_LABELS).map(([key, label]) =>
+      `<label><input type="checkbox" data-layer="${key}" ${layers[key] ? "checked" : ""}> ${label}</label>`
+    ).join("");
+    L.DomEvent.disableClickPropagation(div);
+    div.addEventListener("change", (e) => {
+      if (e.target.matches("[data-layer]")) {
+        const key = e.target.dataset.layer;
+        const on = e.target.checked;
+        const cur = { ...(state.get("layers") || {}) };
+        cur[key] = on;
+        state.set("layers", cur);
+        overlaysApi.toggle(key, on);
+      }
+    });
+    return div;
+  };
+  return ctrl;
 }
