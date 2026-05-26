@@ -5,6 +5,10 @@ __pycache__/
 /apartments_*.csv
 /apartments_*.html
 /sample_report.*
+# Local dev submissions intake — contains submitter names. Prod uses the
+# Apps Script URL via KHOJ_SUBMISSIONS_URL secret; only the empty template
+# (submissions_template.csv) is committed.
+/submissions.csv
 # Local session notes / handoffs — not for the public repo
 /session_handoff.md
 /SESSION_HANDOFF.md

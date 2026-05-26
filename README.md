@@ -1,82 +1,103 @@
-# Khoj — Brooklyn apartments near a downtown campus
+<div align="center">
 
-A daily-refreshed Brooklyn-apartment map for a student near a Tandon-style downtown campus. The point isn't to compete with StreetEasy on photos — it's to layer on the data those sites *don't* give you: real commute time to the campus, neighborhood safety, noise, and how close the nearest South-Asian grocery is. Campus coordinates and budget bounds live in `scraper.py`; tweak them to point at your own school / target.
+# Khoj
 
-**Read the latest report:** https://animeshux.github.io/khoj/
+**A daily-refreshed Brooklyn-apartment map, layered with the data StreetEasy doesn't give you.**
 
-No login. No app to install. Works on phones. Bookmark the link and check it whenever you want — it updates itself once a day.
+Commute time to a specific campus. Neighborhood safety. Noise complaints. South-Asian groceries within a mile. Re-rendered every morning at 9 AM Eastern.
 
-> **Status: early alpha.** This is a human-factors engineer's exploration of what the right information system for apartment-hunting looks like when you can layer real city data (commute, safety, noise, food access) onto listings. Expect opinionated defaults, rough edges, and obvious UX bugs that get fixed as the build goes on. If you run into one, the [Issues tab](https://github.com/animeshUX/khoj/issues) is the place.
+[**Open the live report &rarr;**](https://animeshux.github.io/khoj/)
 
-## What it shows
+[![Daily scrape](https://github.com/animeshUX/khoj/actions/workflows/scrape.yml/badge.svg)](https://github.com/animeshUX/khoj/actions/workflows/scrape.yml)
+[![Secret scan](https://github.com/animeshUX/khoj/actions/workflows/secrets.yml/badge.svg)](https://github.com/animeshUX/khoj/actions/workflows/secrets.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1A1612.svg)](LICENSE)
+[![Status: alpha](https://img.shields.io/badge/status-early%20alpha-8C2026.svg)](#status)
 
-One page, one map, a sortable list of every candidate the system knows about today:
+<br>
 
-- **List rail (left)** — every listing, sortable by score / price / commute / posted-date. Click a row → its pin highlights on the map and a detail panel slides in.
-- **Map (right)** — pins colored by fit-score (muted gray → crimson as the score climbs), the campus marked with a crimson star, F/A/C/R subway stations as MTA-style bullets, plus a layers control to toggle overlays for noise, crime, parks, the 30-minute commute zone, and subway lines. Eight free tile providers in the picker — Streets, Minimal, Voyager, Dark, Gray, Satellite, Transit, Humanitarian.
-- **Detail panel** — full enrichment per listing: commute breakdown (walk + rail minutes, nearest station + lines), 12-month safety stats (felonies / misdemeanors / violations), 12-month 311 noise counts, ranked Indian restaurants ≤1mi, halal/desi groceries with a south-asian flag. Click the listing URL to open the source page.
+<img src="docs/assets/hero.jpg" alt="Khoj report: list of candidate listings on the left, a Brooklyn map with score-colored pins, subway bullets, and a commute zone on the right" width="900">
 
-You can **★ Star** ones you like, **⊘ Hide** ones that don't fit, and type a **Note** on each. Those marks stay on your device — open the page tomorrow and they'll still be there.
+</div>
 
-**Keyboard:** `j` / `k` next / previous listing, `s` star, `h` hide, `Esc` close panel, `/` focus the price-filter input.
+---
+
+## What it is
+
+A human-factors engineer's exploration of what the right information system for apartment-hunting looks like when you can layer real city data (commute, safety, noise, food access) onto listings. Built originally for one student looking for a place near a downtown Brooklyn campus; the campus coordinates and budget bounds live in `scraper.py` &mdash; point them at your own school to fork.
+
+The point isn't to compete with StreetEasy on photos. It's to surface the questions those sites can't answer.
+
+> [!NOTE]
+> <a id="status"></a>**Status: early alpha.** Opinionated defaults, rough edges, UX bugs in active triage. If you hit one, the [Issues tab](https://github.com/animeshUX/khoj/issues) is the place.
+
+## What you see
+
+One page, three panes:
+
+- **List rail (left)** &mdash; every listing, sortable by score / price / commute / posted-date. Click a row to highlight its pin and slide in a detail panel.
+- **Map (right)** &mdash; pins colored by fit-score (muted gray &rarr; crimson as score climbs), campus marked with a crimson star, F/A/C/R subway stations as MTA bullets. Toggle overlays for noise, crime, parks, the 30-minute commute zone, and subway lines. Eight free tile providers in the picker.
+- **Detail panel** &mdash; commute breakdown (walk + rail minutes, nearest station + lines), 12-month safety stats, 311 noise counts, ranked Indian restaurants &le; 1 mi, halal/desi groceries.
+
+**&starf; Star** the good ones, **&#x2298; Hide** the bad ones, type a **note** on any. Marks live in `localStorage` per device.
+
+**Keyboard:** `j`/`k` next/previous, `s` star, `h` hide, `Esc` close panel, `/` focus price filter.
 
 ## What it's filtered to
 
-Hard filters live in `scraper.py` and apply to the Craigslist scrape:
+Hard filters in `scraper.py`, applied to the Craigslist scrape only:
 
-- Price between **$800 and $1,500**
-- Studio, 1-bedroom, or 2-bedroom
-- Posted in the last two weeks
-- Within roughly a 30-minute commute of the campus address pinned in `scraper.py` (geodesic ~4-mile proxy)
+- **$800 &ndash; $1,500** &nbsp;&middot;&nbsp; studio / 1BR / 2BR &nbsp;&middot;&nbsp; posted within two weeks &nbsp;&middot;&nbsp; geodesic &le; 4 mi from campus (~30-min commute proxy)
 
-Submitted URLs (see below) bypass the hard filters — if someone took the time to send it, it surfaces regardless.
-
-## Sharing a listing you found yourself
-
-Three intake paths, all feeding the same enrichment pipeline:
-
-1. **Google Sheet** (primary, for non-technical family members) — add a row to the shared sheet. Template in `submissions_template.csv`. An Apps Script web app exposes the sheet as CSV; the scraper reads it via the `KHOJ_SUBMISSIONS_URL` repo secret. The Apps Script resolves rich-text hyperlinks and pre-fetches OpenGraph metadata so listings on Amber / StreetEasy / PadMapper still show a title even though those sites block scraping from datacenter IPs. See `apps_script.gs`.
-2. **Obsidian Web Clipper drops** (for power users) — clip any listing page in your browser; the markdown file lands in `submissions/*.md` and the scraper picks it up on the next run. Web Clipper preserves the address, description, and photos cleanly enough that the geocoder works on sites where address-via-OG fails. See `submissions/README.md`.
-3. **Local CSV fallback** — `submissions.csv` at the repo root, same columns as the template. Useful for local testing without a sheet.
-
-Trigger an immediate refresh instead of waiting for tomorrow: **Actions → "Scrape Craigslist" → Run workflow**. About five minutes later, the live page updates.
+Submitted URLs (see below) bypass these &mdash; if a human cared enough to send it, it surfaces.
 
 ## How a listing gets scored
 
-The displayed score is a **0–1 fit-score** computed in `score.py` from the enrichment data. Each component returns `None` when its data is missing — missing inputs are skipped from the average rather than penalized (so a Craigslist listing with no enrichment doesn't score zero just because it has no commute number; it just gets scored on price alone).
+A 0&ndash;1 fit-score computed in `score.py`. Missing inputs are skipped from the average rather than penalized.
 
 | Weight | Component | What it measures |
-|---|---|---|
-| 0.35 | Commute | Listing → nearest relevant subway → campus. 15 min → 1.0, 45 min → 0.0, linear in between. |
-| 0.25 | Safety | NYPD CompStat felonies in the precinct (12 mo). ≤20 → 1.0, ≥200 → 0.0, linear. |
-| 0.20 | South-Asian access | ≥1 south-asian grocery + ≥3 close Indian restaurants → 1.0, partials → 0.7 / 0.4 / 0.0. |
-| 0.20 | Price | ≤$800 → 1.0, ≥$2,000 → 0.0, linear inside the band. |
+|---:|---|---|
+| 0.35 | Commute | Listing &rarr; nearest relevant subway &rarr; campus. 15 min &rarr; 1.0, 45 min &rarr; 0.0. |
+| 0.25 | Safety | NYPD CompStat felonies in the precinct (12 mo). &le; 20 &rarr; 1.0, &ge; 200 &rarr; 0.0. |
+| 0.20 | South-Asian access | &ge; 1 grocery + &ge; 3 close Indian restaurants &rarr; 1.0; partials &rarr; 0.7 / 0.4 / 0.0. |
+| 0.20 | Price | &le; $800 &rarr; 1.0, &ge; $2,000 &rarr; 0.0. |
 
-It's a heuristic, not gospel. If you want different weights, edit the constants at the top of `score.py`.
+It's a heuristic, not gospel. Edit the constants at the top of `score.py` for different weights.
+
+## Submitting a listing you found yourself
+
+Three intake paths, all feeding the same enrichment pipeline:
+
+1. **Google Sheet** &mdash; add a row to the shared sheet. Template in `submissions/template.csv`. An Apps Script web app exposes the sheet as CSV; the scraper reads it via the `KHOJ_SUBMISSIONS_URL` repo secret. The script also resolves rich-text hyperlinks and pre-fetches OpenGraph metadata so Amber / StreetEasy / PadMapper listings get titles even though they block scraping from datacenter IPs. See [`tools/apps_script.gs`](tools/apps_script.gs).
+2. **Obsidian Web Clipper drops** &mdash; clip any listing page in your browser; the markdown file lands in `submissions/*.md` and the scraper picks it up on the next run. See [`submissions/README.md`](submissions/README.md).
+3. **Local CSV** &mdash; `submissions.csv` at the repo root (gitignored), same columns as the template. Useful for local testing.
+
+Trigger a fresh run without waiting for tomorrow: **Actions &rarr; "Scrape Craigslist" &rarr; Run workflow**. The live page updates ~5 minutes later.
 
 ## How it actually runs
 
-Two GitHub Actions workflows, one Python package, a static `docs/` directory served by Pages.
+Two GitHub Actions workflows, one Python package, a static `docs/` directory served by Pages. **No database. No API keys. No hosting bill.**
 
-- **`scrape.yml`** — fires once a day around 9 AM Eastern. Runs `python scraper.py --pages-mode`, which: scrapes Craigslist, reads sheet submissions, reads Web Clipper drops, geocodes every listing via Nominatim, enriches with NYC Open Data (311 noise, NYPD crime) and Overpass (Indian food, halal grocery), and writes `docs/index.html` + `docs/apartments_YYYY-MM-DD.{html,csv}`.
-- **`overlays.yml`** — fires once a week (Mon 06:00 UTC). Runs `python tools/build_overlays.py` to refresh `docs/data/crime.geojson` from NYPD CompStat. CompStat updates monthly so weekly is plenty.
+- **`scrape.yml`** &mdash; daily at ~9 AM Eastern. Scrapes Craigslist, reads sheet + Web Clipper submissions, geocodes via Nominatim, enriches with NYC Open Data (311 noise, NYPD crime) and Overpass (Indian food, halal grocery), and writes `docs/index.html` + a dated archive.
+- **`overlays.yml`** &mdash; weekly (Mon 06:00 UTC). Refreshes `docs/data/crime.geojson` from NYPD CompStat.
+- **`secrets.yml`** &mdash; on every push/PR. Gitleaks scan against the full history.
 
-**Code layout:**
+<details>
+<summary><b>Code layout</b></summary>
 
 ```
 scraper.py          orchestrator: scrape + read submissions + geocode + enrich + score
-submission.py       parse Web Clipper .md frontmatter + body → Listing dict
-enrich.py           geocode + commute + 311 noise + NYPD crime + Overpass POIs (with on-disk cache)
-score.py            0–1 fit score from the enrichment block
+submission.py       parse Web Clipper .md frontmatter + body -> Listing dict
+enrich.py           geocode + commute + 311 noise + NYPD crime + Overpass POIs (cached)
+score.py            0-1 fit score from the enrichment block
 
-report/             render tier (Python package, used by scraper.py)
+report/             render tier (Python package, imported by scraper.py)
   build.py            write_html(listings, path)
-  payload.py          builds window.KHOJ — the data contract for the browser
+  payload.py          builds window.KHOJ -- the data contract for the browser
   template.py         HTML shell
   __main__.py         `python -m report` for local re-render without re-scraping
 
 docs/khoj/          browser tier (ES modules + CSS)
-  main.js             entry — wires the modules together
+  main.js             entry -- wires the modules together
   state.js            pub-sub store with localStorage persistence
   map.js              Leaflet init, listing pins, campus star, tile picker, layers control
   list.js             left rail rows, sort, hover-sync with pins
@@ -87,48 +108,61 @@ docs/khoj/          browser tier (ES modules + CSS)
   khoj.css            all styles (cream-paper editorial theme, design tokens)
 
 docs/data/          pre-computed static GeoJSON overlays
-tools/              one-off / weekly build scripts (build_overlays.py, etc.)
+tools/              one-off / weekly build scripts + apps_script.gs
 ```
 
-No database, no API keys, no hosting bill.
+</details>
 
-## One-time setup (for a fresh clone of this repo)
-
-1. **Settings → Pages** → Source: "Deploy from a branch" → Branch: `main`, Folder: `/docs` → Save
-2. **Settings → Actions → General** → Workflow permissions → "Read and write permissions" → Save
-3. **Actions tab → "Scrape Craigslist" → Run workflow** to kick off the first run
-4. (Optional) **Settings → Secrets and variables → Actions** → add `KHOJ_SUBMISSIONS_URL` pointing at your Apps Script Web App
-
-After about five minutes you'll have a live URL at `https://<your-github-handle>.github.io/khoj/`.
-
-## Running it on your own machine (optional)
+<details>
+<summary><b>Run it locally</b></summary>
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python scraper.py --sanity-check     # quick check that Craigslist is reachable
+python scraper.py --sanity-check     # quick check Craigslist is reachable
 python scraper.py                    # writes apartments_YYYY-MM-DD.{csv,html}
 python scraper.py --pages-mode       # writes into docs/ the same way the Action does
 python -m report                     # re-render docs/index.html from the existing payload
-                                     # (useful when you're iterating on CSS/JS without re-scraping)
-python -m pytest tests/ -v           # 9 unit tests (score.py + payload.py)
+                                     # (useful when iterating on CSS/JS without re-scraping)
+python -m pytest tests/ -v           # unit tests (score.py + payload.py)
 ```
 
-If the sanity check fails with a 403, run `python scraper.py --diagnose` to see which Craigslist endpoints are blocked from your network. Usually means you're on a VPN or corporate Wi-Fi.
+If `--sanity-check` 403s, run `python scraper.py --diagnose` to see which Craigslist endpoints are blocked from your network. Usually means a VPN or corporate Wi-Fi.
 
-## Things to know
+</details>
 
-- **Craigslist blocks the RSS endpoint** from most networks. We parse the static HTML search page instead — works fine from GitHub's runners.
-- **There's a 1.5-second pause** between Craigslist requests so we don't hammer their servers. ~100 listings takes about 5 minutes.
-- **Listings without coordinates still show up** in the list rail (they just don't get a map pin). Pre-pivot we dropped them; now you see them so you can decide.
-- **The cron is idempotent.** Re-running just regenerates today's output; nothing accumulates.
-- **Geocoding is cached on disk** (`.cache/geocode.json`, gitignored) so repeat runs don't hammer Nominatim. The SODA / Overpass enrichments are cached by week.
+<details>
+<summary><b>Self-host (fresh fork)</b></summary>
+
+1. **Settings &rarr; Pages** &rarr; Source: "Deploy from a branch" &rarr; Branch: `main`, Folder: `/docs` &rarr; Save
+2. **Settings &rarr; Actions &rarr; General** &rarr; Workflow permissions &rarr; "Read and write permissions" &rarr; Save
+3. **Actions tab &rarr; "Scrape Craigslist" &rarr; Run workflow** to kick off the first run
+4. (Optional) **Settings &rarr; Secrets and variables &rarr; Actions** &rarr; add `KHOJ_SUBMISSIONS_URL` pointing at your Apps Script Web App
+
+After ~5 minutes you'll have a live URL at `https://<your-github-handle>.github.io/khoj/`.
+
+</details>
+
+<details>
+<summary><b>Things to know</b></summary>
+
+- **Craigslist blocks the RSS endpoint** from most networks. We parse the static HTML search page instead &mdash; works fine from GitHub's runners.
+- **1.5-second pause** between Craigslist requests so we don't hammer their servers. ~100 listings takes about 5 minutes.
+- **Listings without coordinates** still show up in the list rail (they just don't get a map pin).
+- **The cron is idempotent.** Re-running regenerates today's output; nothing accumulates.
+- **Geocoding is cached on disk** (`.cache/geocode.json`, gitignored). SODA / Overpass enrichments are cached by week.
+
+</details>
 
 ## Other places worth checking by hand
 
-The report covers Craigslist scraping + manual submissions. These are also listed at the bottom of every page:
+The report covers Craigslist + manual submissions. These are also linked at the bottom of every page:
 
-- **[AmberStudent](https://amberstudent.com/places/search/new-york-university-1811221663188)** — purpose-built student housing (per-room, booking-style)
-- **[StreetEasy](https://streeteasy.com/for-rent/brooklyn/price:800-1500%7Cbeds%3C=2)** — NYC's biggest rental marketplace
-- **[PadMapper](https://www.padmapper.com/apartments/brooklyn-ny?maxRent=1500)** — aggregator with map view
+- [**AmberStudent**](https://amberstudent.com/places/search/new-york-university-1811221663188) &mdash; purpose-built student housing (per-room, booking-style)
+- [**StreetEasy**](https://streeteasy.com/for-rent/brooklyn/price:800-1500%7Cbeds%3C=2) &mdash; NYC's biggest rental marketplace
+- [**PadMapper**](https://www.padmapper.com/apartments/brooklyn-ny?maxRent=1500) &mdash; aggregator with map view
+
+---
+
+<sub>**Security:** see [SECURITY.md](SECURITY.md) for the disclosure policy. &nbsp;&middot;&nbsp; **License:** [MIT](LICENSE). &nbsp;&middot;&nbsp; Built with Leaflet, OpenStreetMap, NYC Open Data, and Overpass.</sub>

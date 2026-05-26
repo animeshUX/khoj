@@ -14,7 +14,7 @@ Khoj is a daily-updated Craigslist apartment report for a student looking for a 
 |---|---|
 | `scraper.py` | Pulls Craigslist Brooklyn apartments, filters by price/distance/recency, scores by fit |
 | `report.py` | Renders the editorial-dashboard HTML report |
-| `submissions.csv` / Apps Script Web App | Google-Sheets-style intake (Timestamp, URL, Submitted by, Note). Read locally as CSV or via `KHOJ_SUBMISSIONS_URL` env var (the Apps Script Web App resolves rich-text hyperlinks and pre-fetches OG metadata before serving as CSV). `submissions_template.csv` is the empty header for the shared Sheet. |
+| `submissions.csv` / Apps Script Web App | Google-Sheets-style intake (Timestamp, URL, Submitted by, Note). Read locally as CSV (dev-only, gitignored) or via `KHOJ_SUBMISSIONS_URL` env var (the Apps Script Web App resolves rich-text hyperlinks and pre-fetches OG metadata before serving as CSV). `submissions/template.csv` is the empty header for the shared Sheet. |
 | `submissions/*.md` | Obsidian Web Clipper drops (Phase 1 of the pivot, see `PLAN.md`) — gitignored by default, see `submissions/README.md`. |
 | `.github/workflows/scrape.yml` | Daily cron + on-demand trigger; runs scraper, commits `docs/` back to main |
 | `docs/index.html` | What GitHub Pages serves at https://animeshux.github.io/khoj/ — **live, Pages enabled** |
@@ -55,7 +55,7 @@ python scraper.py --diagnose        # probe endpoints when --sanity-check 403s
 
 **Intake path for human-submitted URLs:**
 
-**`submissions.csv` OR a `KHOJ_SUBMISSIONS_URL` env var** — Google-Sheets-style intake (`Timestamp, URL, Submitted by, Note`). `_read_submissions_csv()` accepts either a local CSV path or an http(s) URL — typically an Apps Script Web App `doGet` endpoint serving the live sheet (`?key=<secret>` for auth). The workflow injects `KHOJ_SUBMISSIONS_URL` from a GitHub repo secret so the URL never lives in the repo. The Apps Script also resolves rich-text hyperlinks (when a cell shows a title but has a link attached) and pre-fetches OG metadata from Google's IP space — see `apps_script.gs`.
+**`submissions.csv` OR a `KHOJ_SUBMISSIONS_URL` env var** — Google-Sheets-style intake (`Timestamp, URL, Submitted by, Note`). `_read_submissions_csv()` accepts either a local CSV path or an http(s) URL — typically an Apps Script Web App `doGet` endpoint serving the live sheet (`?key=<secret>` for auth). The workflow injects `KHOJ_SUBMISSIONS_URL` from a GitHub repo secret so the URL never lives in the repo. The Apps Script also resolves rich-text hyperlinks (when a cell shows a title but has a link attached) and pre-fetches OG metadata from Google's IP space — see `tools/apps_script.gs`.
 
 Submitted URLs bypass the price/distance/recency hard filters but still get scored. The Action picks them up on the next scheduled run or on demand from the Actions tab.
 

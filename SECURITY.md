@@ -27,7 +27,7 @@ In scope:
 - The scraper, scoring, and report-rendering code (`scraper.py`,
   `score.py`, `report/`, `enrich.py`, `submission.py`).
 - The browser modules under `docs/khoj/`.
-- The Apps Script Web App in `apps_script.gs`.
+- The Apps Script Web App in `tools/apps_script.gs`.
 - The GitHub Actions workflows in `.github/workflows/`.
 
 Out of scope:

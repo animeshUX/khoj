@@ -198,7 +198,7 @@ Each phase ships independently with visible value.
   results above. Run with `.venv/bin/python tools/enrich_dryrun.py`. Looks
   in repo root for `*.md` Web Clipper outputs.
 - `submissions/README.md` — intake-side docs (drop a clip → what happens)
-- `apps_script.gs` — current Apps Script (hyperlink resolution + OG
+- `tools/apps_script.gs` — current Apps Script (hyperlink resolution + OG
   pre-fetch). Needs no further changes for the pivot.
 - `CLAUDE.md` — describes the *current* shipped architecture. Will be
   rewritten after Phase 4 ships.

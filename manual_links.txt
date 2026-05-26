@@ -1,3 +1,0 @@
-# Hand-picked listings — shown verbatim on the report (no parsing, no scoring).
-# Format: URL | description     (lines starting with # are ignored)
-https://amberstudent.com/places/bernard-brooklyn-home-brooklyn-2207181201880 | Bernard Brooklyn — managed student housing (AmberStudent)
