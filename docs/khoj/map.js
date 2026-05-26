@@ -221,17 +221,16 @@ export function createMap(state, mountId = 'khoj-map') {
     markerLayer = L.layerGroup().addTo(mapInstance);
     markerByUrl.clear();
 
-    const starred = state.get('starred') || [];
-    const hidden  = state.get('hidden')  || [];
-
     PAYLOAD.forEach(l => {
       if (l.lat == null || l.lng == null) return;
-      const cls = hidden.includes(l.id) ? 'is-hidden'
-                : starred.includes(l.id) ? 'is-starred'
-                : '';
-      const marker = L.marker([l.lat, l.lng], {
-        icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] }),
+      const score = l.score ?? 0;
+      const tier = score < 0.4 ? 'low' : score < 0.7 ? 'mid' : 'high';
+      const icon = L.divIcon({
+        className: 'khoj-pin',
+        html: `<span class="khoj-pin-dot" data-score-tier="${tier}"></span>`,
+        iconSize: [18, 18],
       });
+      const marker = L.marker([l.lat, l.lng], { icon });
       const bedTxt = l.beds === 0 ? 'Studio'
                    : (l.beds != null ? l.beds + 'BR' : '?');
       marker.bindPopup(
@@ -245,6 +244,17 @@ export function createMap(state, mountId = 'khoj-map') {
       marker.addTo(markerLayer);
       markerByUrl.set(l.id, marker);
     });
+  }
+
+  function syncFlags() {
+    const starred = new Set(state.get('starred') || []);
+    const hidden  = new Set(state.get('hidden')  || []);
+    for (const [id, marker] of markerByUrl.entries()) {
+      const el = marker.getElement()?.querySelector('.khoj-pin-dot');
+      if (!el) continue;
+      el.dataset.starred = starred.has(id);
+      el.dataset.hidden  = hidden.has(id);
+    }
   }
 
   // Mount the map
@@ -275,9 +285,10 @@ export function createMap(state, mountId = 'khoj-map') {
   coords.push(CAMPUS);
   if (coords.length > 1) mapInstance.fitBounds(coords, { padding: [40, 40] });
 
-  // Re-render markers when star/hide state changes
-  state.subscribe('starred', () => refreshMapMarkers());
-  state.subscribe('hidden',  () => refreshMapMarkers());
+  // Sync star/hide flags onto existing pins (no full redraw needed)
+  state.subscribe('starred', syncFlags);
+  state.subscribe('hidden',  syncFlags);
+  syncFlags();
 
   return { map: mapInstance, markerByUrl, refreshMapMarkers };
 }
