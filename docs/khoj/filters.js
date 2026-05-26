@@ -1,6 +1,11 @@
+import { TILE_PROVIDERS, TILE_DEFAULT } from "./map.js";
+
 export function createFilters(state, mountId = "khoj-topbar") {
   const root = document.getElementById(mountId);
   const f = state.get("filters") || {};
+  const tile = state.get("tile") || TILE_DEFAULT;
+  const tileOpts = Object.entries(TILE_PROVIDERS).map(([k, p]) =>
+    `<option value="${k}"${k === tile ? " selected" : ""}>${p.label}</option>`).join("");
 
   root.innerHTML = `
     <span class="khoj-brand">Khoj</span>
@@ -9,6 +14,7 @@ export function createFilters(state, mountId = "khoj-topbar") {
     <label class="khoj-chip"><input data-f="south_asian" type="checkbox" ${f.south_asian ? "checked" : ""}> SA food ≤1mi</label>
     <label class="khoj-chip"><input data-f="only_starred" type="checkbox" ${f.only_starred ? "checked" : ""}> ☆ only</label>
     <label class="khoj-chip"><input data-f="hide_hidden"  type="checkbox" ${f.hide_hidden  ? "checked" : ""}> Hide rejected</label>
+    <select data-tile class="khoj-sort" aria-label="Base map">${tileOpts}</select>
     <select data-f="sort" class="khoj-sort">
       <option value="score">Sort: score</option>
       <option value="price">Sort: price</option>
@@ -21,6 +27,10 @@ export function createFilters(state, mountId = "khoj-topbar") {
   const sortSel = root.querySelector('[data-f="sort"]');
   sortSel.value = state.get("sort") || "score";
   sortSel.addEventListener("change", () => state.set("sort", sortSel.value));
+
+  const tileSel = root.querySelector('[data-tile]');
+  tileSel.addEventListener("change", () => state.set("tile", tileSel.value));
+  state.subscribe("tile", (v) => { if (tileSel.value !== v) tileSel.value = v; });
 
   root.addEventListener("change", (e) => {
     const t = e.target;

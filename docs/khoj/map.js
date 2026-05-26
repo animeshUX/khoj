@@ -1,7 +1,7 @@
 import { applyFilters } from "./filters.js";
 
 // Tile providers — all free, no API key.
-const TILE_PROVIDERS = {
+export const TILE_PROVIDERS = {
   streets: {
     label: 'Streets',
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -55,8 +55,7 @@ const TILE_PROVIDERS = {
     subdomains: 'abc',
   },
 };
-const TILE_DEFAULT = 'streets';
-const TILE_KEY = 'khoj.tile';
+export const TILE_DEFAULT = 'streets';
 
 const METERS_PER_MILE = 1609.344;
 const RING_MILES = [1, 2, 3, 4];
@@ -67,9 +66,6 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function getTileChoice() {
-  try { return localStorage.getItem(TILE_KEY) || TILE_DEFAULT; } catch { return TILE_DEFAULT; }
-}
 
 export function createMap(state, mountId = 'khoj-map') {
   const CAMPUS = [window.KHOJ.campus.lat, window.KHOJ.campus.lng];
@@ -156,7 +152,8 @@ export function createMap(state, mountId = 'khoj-map') {
   if (!el) return { map: null, markerByUrl };
 
   mapInstance = L.map(mountId, { scrollWheelZoom: true, wheelPxPerZoomLevel: 80 }).setView(CAMPUS, 13);
-  applyTile(getTileChoice());
+  applyTile(state.get('tile') || TILE_DEFAULT);
+  state.subscribe('tile', (v) => applyTile(v || TILE_DEFAULT));
 
   drawDistanceRings();
 
@@ -208,7 +205,7 @@ export function createMap(state, mountId = 'khoj-map') {
   return {
     map: mapInstance,
     markerByUrl,
-    mountLayersControl: (state, overlaysApi) => mountLayersControl(state, overlaysApi, applyTile),
+    mountLayersControl: (state, overlaysApi) => mountLayersControl(state, overlaysApi),
   };
 }
 
@@ -221,12 +218,12 @@ const LAYER_LABELS = {
   commute_zone:    "Commute zone",
 };
 
-function mountLayersControl(state, overlaysApi, applyTile) {
+function mountLayersControl(state, overlaysApi) {
   const ctrl = L.control({ position: "topright" });
   ctrl.onAdd = () => {
     const div = L.DomUtil.create("div", "khoj-layers-control");
     const layers = state.get("layers") || {};
-    const tile = getTileChoice();
+    const tile = state.get("tile") || TILE_DEFAULT;
     const baseOpts = Object.entries(TILE_PROVIDERS).map(([k, p]) =>
       `<option value="${k}"${k === tile ? " selected" : ""}>${p.label}</option>`).join("");
     div.innerHTML =
@@ -243,9 +240,12 @@ function mountLayersControl(state, overlaysApi, applyTile) {
         state.set("layers", cur);
         overlaysApi.toggle(t.dataset.layer, t.checked);
       } else if (t.matches("[data-tile-select]")) {
-        try { localStorage.setItem(TILE_KEY, t.value); } catch {}
-        applyTile(t.value);
+        state.set("tile", t.value);
       }
+    });
+    state.subscribe("tile", (v) => {
+      const sel = div.querySelector("[data-tile-select]");
+      if (sel && sel.value !== v) sel.value = v;
     });
     return div;
   };

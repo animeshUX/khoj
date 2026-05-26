@@ -1,6 +1,6 @@
 const LS_PREFIX = "khoj.";
 const PERSISTED = new Set([
-  "starred", "hidden", "notes", "filters", "layers", "sort",
+  "starred", "hidden", "notes", "filters", "layers", "sort", "tile",
 ]);
 
 export function createState(initial = {}) {
@@ -10,8 +10,10 @@ export function createState(initial = {}) {
   for (const key of PERSISTED) {
     try {
       const raw = localStorage.getItem(LS_PREFIX + key);
-      if (raw !== null) data[key] = JSON.parse(raw);
-    } catch { /* corrupt entry — leave default */ }
+      if (raw === null) continue;
+      try { data[key] = JSON.parse(raw); }
+      catch { data[key] = raw; }   /* legacy plain-string value */
+    } catch { /* localStorage unavailable */ }
   }
 
   function get(key) { return data[key]; }
