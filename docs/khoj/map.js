@@ -48,8 +48,8 @@ function getTileChoice() {
 }
 
 export function createMap(state, mountId = 'khoj-map') {
-  const CAMPUS = window.CAMPUS;
-  const PAYLOAD = JSON.parse(document.getElementById('payload').textContent);
+  const CAMPUS = [window.KHOJ.campus.lat, window.KHOJ.campus.lng];
+  const PAYLOAD = window.KHOJ.listings;
 
   let mapInstance = null;
   let currentTileLayer = null;
@@ -226,25 +226,24 @@ export function createMap(state, mountId = 'khoj-map') {
 
     PAYLOAD.forEach(l => {
       if (l.lat == null || l.lng == null) return;
-      const cls = hidden.includes(l.url) ? 'is-hidden'
-                : starred.includes(l.url) ? 'is-starred'
+      const cls = hidden.includes(l.id) ? 'is-hidden'
+                : starred.includes(l.id) ? 'is-starred'
                 : '';
       const marker = L.marker([l.lat, l.lng], {
         icon: L.divIcon({ className: 'khoj-pin ' + cls, iconSize: [14, 14] }),
       });
-      const bedTxt = l.bedrooms === 0 ? 'Studio'
-                   : (l.bedrooms != null ? l.bedrooms + 'BR' : '?');
-      const distTxt = l.distance != null ? l.distance.toFixed(2) + ' mi' : '? mi';
+      const bedTxt = l.beds === 0 ? 'Studio'
+                   : (l.beds != null ? l.beds + 'BR' : '?');
       marker.bindPopup(
-        `<b>#${pad(l.n)} ${esc(l.title)}</b><br>` +
-        `${l.price != null ? '$' + l.price.toLocaleString() : '$?'} · ${esc(bedTxt)} · ${esc(distTxt)}<br>` +
+        `<b>${esc(l.title)}</b><br>` +
+        `${l.price != null ? '$' + l.price.toLocaleString() : '$?'} · ${esc(bedTxt)}<br>` +
         `<a href="${esc(l.url)}" target="_blank" rel="noopener">View →</a>`
       );
       marker.on('click', () => {
-        state.set('selectedId', l.url);
+        state.set('selectedId', l.id);
       });
       marker.addTo(markerLayer);
-      markerByUrl.set(l.url, marker);
+      markerByUrl.set(l.id, marker);
     });
   }
 

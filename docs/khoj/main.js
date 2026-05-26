@@ -4,7 +4,7 @@ import { createList } from "./list.js";
 import { createPanel } from "./panel.js";
 
 const state = createState({
-  filters: { max_price: 1500, max_commute: 30, hide_hidden: true, only_starred: false },
+  filters: window.KHOJ.filter_defaults,
   selectedId: null,
 });
 

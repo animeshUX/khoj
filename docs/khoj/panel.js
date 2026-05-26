@@ -1,5 +1,3 @@
-const PAYLOAD = JSON.parse(document.getElementById('payload').textContent);
-
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -17,7 +15,7 @@ export function createPanel(state, mountId = "khoj-panel") {
       root.innerHTML = "";
       return;
     }
-    const l = PAYLOAD.find((x) => x.url === id);
+    const l = window.KHOJ.listings.find((x) => x.id === id);
     if (!l) { close(); return; }
 
     const starred = (state.get("starred") || []).includes(id);
@@ -29,7 +27,7 @@ export function createPanel(state, mountId = "khoj-panel") {
       <header>
         <h2>${esc(l.title)}</h2>
         <p class="khoj-panel-meta">
-          ${l.price ? "$" + esc(l.price) : "—"} · ${l.bedrooms == null ? "?" : (l.bedrooms === 0 ? "Studio" : l.bedrooms + "BR")}
+          ${l.price ? "$" + esc(l.price) : "—"} · ${l.beds == null ? "?" : (l.beds === 0 ? "Studio" : l.beds + "BR")}
           · <a href="${esc(l.url)}" target="_blank" rel="noopener">source ↗</a>
         </p>
         <p class="khoj-panel-addr">${esc(l.address ?? "")}</p>
