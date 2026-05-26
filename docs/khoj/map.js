@@ -186,6 +186,14 @@ export function createMap(state, mountId = 'khoj-map') {
   state.subscribe('hidden',  syncFilters);
   syncFilters();
 
+  // Active-state highlight on selected pin
+  state.subscribe('selectedId', (id) => {
+    for (const [pinId, marker] of markerByUrl.entries()) {
+      const el = marker.getElement();
+      if (el) el.classList.toggle('is-active', pinId === id);
+    }
+  });
+
   return { map: mapInstance, markerByUrl, mountLayersControl };
 }
 
