@@ -827,3 +827,29 @@ body {
   .chip-group { flex-wrap: wrap; }
   .masthead-title { font-size: 2.5rem; }
 }
+
+/* ----------------------------------------------------------- Leaflet explorer: list rail */
+#khoj-list { overflow-y: auto; border-right: 1px solid var(--rule); padding: 0; }
+.khoj-row {
+  padding: 14px 16px; border-bottom: 1px solid var(--rule-soft);
+  cursor: pointer; position: relative;
+}
+.khoj-row:hover, .khoj-row:focus { background: var(--paper-warm); outline: none; }
+.khoj-row h3 {
+  font-family: var(--serif-display); font-size: var(--type-lead);
+  font-weight: 600; margin: 0 0 4px; line-height: var(--leading-tight);
+}
+.khoj-row-meta { font-family: var(--mono); font-size: var(--type-mono); margin: 0; color: var(--ink-soft); }
+.khoj-row-hood { font-size: var(--type-small); color: var(--ink-mute); margin: 4px 0 0; }
+.khoj-row-score {
+  position: absolute; top: 14px; right: 16px;
+  font-family: var(--mono); font-size: var(--type-small); color: var(--crimson);
+}
+
+/* Leaflet explorer: app shell */
+#khoj-app { display: grid; grid-template-columns: 400px 1fr; height: calc(100vh - 50px); }
+#khoj-topbar { height: 50px; border-bottom: 1px solid var(--rule); padding: 0 16px;
+               display: flex; align-items: center; gap: 12px; }
+
+/* Pin hover from list rail */
+.khoj-pin--hover .khoj-pin-dot { transform: scale(1.3); transition: transform 120ms; }

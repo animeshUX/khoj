@@ -1,5 +1,6 @@
 import { createState } from "./state.js";
 import { createMap } from "./map.js";
+import { createList } from "./list.js";
 
 const state = createState({
   starred: new Set(),
@@ -9,4 +10,5 @@ const state = createState({
   selectedId: null,
 });
 
-createMap(state, "khoj-map");
+const map = createMap(state, "khoj-map");
+createList(state, "khoj-list", map);
