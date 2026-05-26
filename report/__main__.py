@@ -17,27 +17,13 @@ from .template import render
 
 # New format: window.KHOJ = {...};
 _KHOJ_RX = re.compile(r'window\.KHOJ\s*=\s*(\{.*?\});\s*</script>', re.S)
-# Legacy format: <script id="payload" type="application/json">...</script>
-_LEGACY_PAYLOAD_RX = re.compile(
-    r'<script id="payload" type="application/json">(.*?)</script>',
-    re.S,
-)
 
 
 def _extract(html: str) -> dict:
-    # Try new format first.
     m = _KHOJ_RX.search(html)
-    if m:
-        return json.loads(m.group(1).replace('<\\/', '</'))
-
-    # Fall back to legacy format: rebuild payload from extracted listings.
-    m = _LEGACY_PAYLOAD_RX.search(html)
     if not m:
         sys.exit("could not find inline payload in " + repr(html[:120]))
-    listings = json.loads(m.group(1).replace('<\\/', '</'))
-    # Legacy listings are already dicts; pass them through build_payload.
-    # They use old field names (bedrooms, posted, etc.) — build_payload's shim handles them.
-    return build_payload(listings)
+    return json.loads(m.group(1).replace('<\\/', '</'))
 
 
 def main():
@@ -48,9 +34,8 @@ def main():
 
     html = Path(args.src).read_text(encoding="utf-8")
     payload = _extract(html)
-    listings = payload.get("listings", [])
     Path(args.dst).write_text(render(payload), encoding="utf-8")
-    print(f"re-rendered {len(listings)} listings → {args.dst}")
+    print(f"re-rendered {len(payload.get('listings', []))} listings → {args.dst}")
 
 
 if __name__ == "__main__":
