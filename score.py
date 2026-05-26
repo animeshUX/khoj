@@ -50,15 +50,54 @@ def _price_score(price: int | None) -> float | None:
     return 1.0 - (price - PRICE_FLOOR) / (PRICE_CEIL - PRICE_FLOOR)
 
 
-def compute_score(listing: dict) -> float:
+_COMPONENTS = (
+    ("commute", W_COMMUTE),
+    ("safety",  W_SAFETY),
+    ("sa",      W_SA),
+    ("price",   W_PRICE),
+)
+
+
+def _component_scores(listing: dict) -> dict[str, float | None]:
     enr = listing.get("enrichment") or {}
-    parts = [
-        (W_COMMUTE, _commute_score(enr.get("commute"))),
-        (W_SAFETY,  _safety_score(enr.get("crime"))),
-        (W_SA,      _sa_score(enr.get("food"), enr.get("grocery"))),
-        (W_PRICE,   _price_score(listing.get("price"))),
-    ]
-    active = [(w, s) for w, s in parts if s is not None]
+    return {
+        "commute": _commute_score(enr.get("commute")),
+        "safety":  _safety_score(enr.get("crime")),
+        "sa":      _sa_score(enr.get("food"), enr.get("grocery")),
+        "price":   _price_score(listing.get("price")),
+    }
+
+
+def compute_score(listing: dict) -> float:
+    parts = _component_scores(listing)
+    active = [(w, parts[k]) for k, w in _COMPONENTS if parts[k] is not None]
     if not active: return 0.0
     total_w = sum(w for w, _ in active)
     return sum(w * s for w, s in active) / total_w
+
+
+def score_breakdown(listing: dict) -> dict:
+    """Per-component breakdown for the tooltip.
+
+    Each present component reports its raw 0..1 score, its weight, and the
+    contribution (weighted score / sum-of-active-weights × 100). Missing
+    components are omitted — they don't penalize, they just drop out of the
+    average, which is also why contributions don't always sum to the raw
+    weights.
+    """
+    parts = _component_scores(listing)
+    active = {k: parts[k] for k, _ in _COMPONENTS if parts[k] is not None}
+    weights = {k: w for k, w in _COMPONENTS if k in active}
+    total_w = sum(weights.values()) or 1.0
+    components = {
+        k: {
+            "score":        round(active[k] * 100),
+            "weight":       weights[k],
+            "contribution": round(weights[k] * active[k] / total_w * 100, 1),
+        }
+        for k in active
+    }
+    return {
+        "total":   round(compute_score(listing) * 100),
+        "components": components,
+    }

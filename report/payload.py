@@ -4,7 +4,7 @@ from __future__ import annotations
 import dataclasses
 from datetime import datetime, timezone
 
-from score import compute_score
+from score import compute_score, score_breakdown
 
 CAMPUS = {"lat": 40.6929, "lng": -73.9870, "label": "NYU Tandon"}
 TILES = {
@@ -40,6 +40,7 @@ def _listing_dict(raw: object) -> dict | None:
         "enrichment":   raw.get("enrichment") or {},
     }
     out["score"] = compute_score(out)
+    out["score_breakdown"] = score_breakdown(out)
     return out
 
 

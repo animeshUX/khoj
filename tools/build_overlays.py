@@ -35,6 +35,11 @@ PRECINCTS_URL = "https://data.cityofnewyork.us/api/geospatial/y76i-bdw7?method=e
 CATEGORIES = {"FELONY": "felonies", "MISDEMEANOR": "misd", "VIOLATION": "viol"}
 SIMPLIFY_TOLERANCE = 0.0002  # ~22m at NYC latitude — same as build_neighborhood_data.py
 
+# Flat-earth deg² → sq-mi conversion at NYC latitude (40.7°):
+#   1° lat ≈ 69 mi, 1° lng ≈ 69 × cos(40.7°) ≈ 52.5 mi  →  1 deg² ≈ 3622.5 sq mi
+# Same approximation the scraper mini-map uses; ~0.1% error at NYC scale.
+SQMI_PER_DEG2 = 69.0 * 52.5
+
 
 def fetch_complaints() -> Counter:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
@@ -106,10 +111,12 @@ def main() -> None:
         fel = counts[(pct, "felonies")]
         mis = counts[(pct, "misd")]
         vio = counts[(pct, "viol")]
+        raw_geom = shape(feat["geometry"])
+        area_sqmi = round(raw_geom.area * SQMI_PER_DEG2, 3)
         try:
-            geom = shape(feat["geometry"]).simplify(SIMPLIFY_TOLERANCE, preserve_topology=True)
+            geom = raw_geom.simplify(SIMPLIFY_TOLERANCE, preserve_topology=True)
         except Exception:
-            geom = shape(feat["geometry"])
+            geom = raw_geom
         features_out.append({
             "type": "Feature",
             "geometry": mapping(geom),
@@ -119,6 +126,8 @@ def main() -> None:
                 "misd": mis,
                 "viol": vio,
                 "total_12mo": fel + mis + vio,
+                "area_sqmi": area_sqmi,
+                "felonies_per_sqmi": round(fel / area_sqmi, 1) if area_sqmi else 0,
             },
         })
     geo["features"] = features_out

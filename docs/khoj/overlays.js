@@ -61,13 +61,38 @@ const REGISTRY = {
   crime: {
     path: './data/crime.geojson',
     build(geo) {
+      // Quintile breaks on felonies-per-sq-mi. Raw counts collapse the visual
+      // (most precincts are above any single threshold), and they're biased by
+      // precinct area. Density quintiles give an ordinal "lower / higher than
+      // the rest of NYC" signal that's actually legible at a glance.
+      const densities = geo.features
+        .map(f => f.properties?.felonies_per_sqmi || 0)
+        .sort((a, b) => a - b);
+      const q = (p) => densities[Math.floor(densities.length * p)] || 0;
+      const breaks = [q(0.2), q(0.4), q(0.6), q(0.8)];
+      const FILL_OPACITY = [0.10, 0.22, 0.36, 0.52, 0.68];
+      function bin(d) {
+        for (let i = 0; i < breaks.length; i++) if (d <= breaks[i]) return i;
+        return 4;
+      }
       return L.geoJSON(geo, {
-        style: (f) => ({
-          color: '#8C2026',
-          fillColor: '#8C2026',
-          fillOpacity: Math.min(0.5, (f.properties?.felonies || 0) / 400),
-          weight: 1,
-        }),
+        style: (f) => {
+          const d = f.properties?.felonies_per_sqmi || 0;
+          return {
+            color: '#8C2026', weight: 0.6, opacity: 0.45,
+            fillColor: '#8C2026', fillOpacity: FILL_OPACITY[bin(d)],
+          };
+        },
+        onEachFeature: (feat, layer) => {
+          const p = feat.properties || {};
+          const d = p.felonies_per_sqmi || 0;
+          layer.bindTooltip(
+            `<b>${esc(p.precinct)} Pct</b> &middot; Q${bin(d) + 1}<br>` +
+            `${(p.felonies || 0).toLocaleString()} felonies / 12mo<br>` +
+            `${d.toLocaleString()} per sq mi  <span class="enr-mute">(${(p.area_sqmi || 0).toFixed(1)} sq mi)</span>`,
+            { sticky: true, className: 'station-tooltip', direction: 'top' }
+          );
+        },
       });
     },
   },

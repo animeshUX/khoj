@@ -765,10 +765,59 @@ body {
 .khoj-row-score {
   position: absolute; top: 14px; right: 16px;
   font-family: var(--mono); font-size: var(--type-small); color: var(--crimson);
+  cursor: help; outline: none;
+  border-bottom: 1px dotted transparent;
+  transition: border-color 120ms;
+}
+.khoj-row-score:hover, .khoj-row-score:focus-visible { border-bottom-color: var(--crimson); }
+
+/* Score-breakdown tooltip (singleton in <body>, positioned via JS) */
+#khoj-score-tip {
+  position: fixed; z-index: 1200;
+  width: 280px; padding: 14px 16px;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 4px;
+  box-shadow: 0 12px 32px -16px rgba(26, 22, 18, 0.32);
+  font-family: var(--serif-body); font-size: var(--type-small);
+  line-height: var(--leading-snug);
+  pointer-events: none;
+}
+#khoj-score-tip[hidden] { display: none; }
+#khoj-score-tip .tip-head {
+  font-family: var(--mono); font-size: var(--type-mono);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--ink-soft); margin-bottom: 8px;
+}
+#khoj-score-tip .tip-head strong {
+  color: var(--crimson); font-weight: 600;
+  font-size: var(--type-lead); font-family: var(--serif-display);
+  letter-spacing: 0; text-transform: none; margin: 0 2px;
+}
+#khoj-score-tip .tip-grid {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--mono); font-size: var(--type-mono);
+}
+#khoj-score-tip .tip-grid th, #khoj-score-tip .tip-grid td {
+  padding: 4px 0; text-align: left; font-weight: 400;
+  border-bottom: 1px solid var(--rule-soft);
+}
+#khoj-score-tip .tip-grid thead th {
+  color: var(--ink-mute); font-size: var(--type-micro);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+#khoj-score-tip .tip-grid tbody tr:last-child th,
+#khoj-score-tip .tip-grid tbody tr:last-child td { border-bottom: none; }
+#khoj-score-tip .tip-grid .num { text-align: right; color: var(--ink-soft); width: 56px; }
+#khoj-score-tip .tip-grid tbody td:last-child { color: var(--crimson); }
+#khoj-score-tip .tip-foot {
+  margin: 10px 0 0; font-size: var(--type-micro);
+  color: var(--ink-mute); line-height: var(--leading-snug);
 }
 
-/* Leaflet explorer: app shell */
-#khoj-app { display: grid; grid-template-columns: 400px 1fr; height: calc(100vh - 50px); position: relative; }
+/* Leaflet explorer: app shell. --list-w / --panel-w are also set by resize.js
+   from localStorage; the values here are the initial defaults. */
+:root { --list-w: 400px; --panel-w: 560px; }
+#khoj-app { display: grid; grid-template-columns: var(--list-w) 1fr; height: calc(100vh - 50px); position: relative; }
 #khoj-topbar { height: 50px; border-bottom: 1px solid var(--rule); padding: 0 16px;
                display: flex; align-items: center; gap: 12px; }
 
@@ -777,7 +826,7 @@ body {
 
 /* ----------------------------------------------------------- Detail panel */
 #khoj-panel {
-  position: absolute; top: 0; right: 0; bottom: 0; width: 560px; max-width: 100vw;
+  position: absolute; top: 0; right: 0; bottom: 0; width: var(--panel-w); max-width: 100vw;
   background: var(--paper); border-left: 1px solid var(--rule);
   padding: 36px 40px 48px; overflow-y: auto; z-index: 500;
   box-shadow: -8px 0 24px -16px rgba(26, 22, 18, 0.18);
@@ -842,6 +891,43 @@ body {
 
 #khoj-map.dimmed { opacity: 0.7; transition: opacity 150ms; }
 
+/* ----------------------------------------------------------- Resize handles */
+.khoj-resize-handle {
+  position: absolute; top: 0; bottom: 0; width: 8px;
+  background: transparent; cursor: col-resize;
+  z-index: 600; touch-action: none;
+  transition: background 120ms;
+}
+.khoj-resize-handle--list  { left: calc(var(--list-w) - 4px); }
+.khoj-resize-handle--panel { right: calc(var(--panel-w) - 4px); }
+.khoj-resize-handle::after {
+  content: ""; position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 2px; height: 36px; border-radius: 1px;
+  background: var(--rule); transition: background 120ms, height 120ms;
+}
+.khoj-resize-handle:hover, .khoj-resize-handle:focus-visible {
+  background: rgba(140, 32, 38, 0.08); outline: none;
+}
+.khoj-resize-handle:hover::after, .khoj-resize-handle:focus-visible::after {
+  background: var(--crimson); height: 52px;
+}
+.khoj-resize-handle.is-dragging {
+  background: rgba(140, 32, 38, 0.16);
+}
+.khoj-resize-handle.is-dragging::after {
+  background: var(--crimson); height: 64px;
+}
+.khoj-resize-handle[hidden] { display: none; }
+
+body.is-resizing,
+body.is-resizing .khoj-resize-handle { cursor: col-resize; }
+body.is-resizing { user-select: none; }
+/* Stop the map from eating pointer events / triggering hover effects mid-drag */
+body.is-resizing #khoj-map,
+body.is-resizing #khoj-list,
+body.is-resizing #khoj-panel { pointer-events: none; }
+
 /* ----------------------------------------------------------- Pin dot wrapper (now contains SVG teardrop) */
 .khoj-pin-dot { display: block; line-height: 0; transition: transform 120ms; }
 .khoj-pin-dot[data-starred="true"] svg path { stroke: var(--gold); stroke-width: 3; }
@@ -879,6 +965,12 @@ body {
 
 /* ----------------------------------------------------------- Filter chips + topbar */
 .khoj-pin--filtered-out .khoj-pin-dot { opacity: 0.15; }
+
+/* Listings whose pin is outside the current map viewport — soft de-emphasis
+   without hiding, so the list still reflects "all matches" but you can tell
+   what's in your current view at a glance. */
+.khoj-row.out-of-view { opacity: 0.55; }
+.khoj-row.out-of-view:hover { opacity: 1; }
 .khoj-chip { display: inline-flex; align-items: center; gap: 4px;
              font-family: var(--mono); font-size: var(--type-small);
              padding: 4px 10px; border: 1px solid var(--rule); border-radius: 4px; }
@@ -894,7 +986,8 @@ body {
 .khoj-empty button { margin-top: 12px; padding: 6px 12px; cursor: pointer; }
 
 @media (max-width: 1180px) and (min-width: 769px) {
-  #khoj-panel { width: 460px; padding: 32px 32px 40px; }
+  :root { --panel-w: 460px; }
+  #khoj-panel { padding: 32px 32px 40px; }
   .khoj-panel-enrichment { grid-template-columns: 1fr 1fr; gap: 18px 20px; }
 }
 
