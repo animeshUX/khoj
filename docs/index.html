@@ -12,100 +12,12 @@
 <link rel="stylesheet" href="khoj/khoj.css">
 </head>
 <body>
-<div class="paper">
-  <header class="masthead">
-    <div class="masthead-strap">
-      <span>BROOKLYN RENTALS · NYU TANDON BEAT</span>
-      <span>VOL. I · NO. 761</span>
-      <span>2026-05-25</span>
-    </div>
-    <h1 class="masthead-title">The Brooklyn <em>Apartment</em> Inquirer</h1>
-    <p class="masthead-sub">A daily digest of rentals near 370 Jay Street, filtered for student budgets ($800–$1,500) and stripped of telemarketing noise.</p>
-  </header>
-
-  <section class="stats">
-    <div class="stat">
-      <span class="stat-label">Listings</span>
-      <span class="stat-value">10</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Cheapest</span>
-      <span class="stat-value">$940</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Closest</span>
-      <span class="stat-value">1.53 <span style="font-size:0.7em;color:var(--ink-mute);">mi</span></span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Shortlist</span>
-      <span class="stat-value" id="shortlist-stat">0</span>
-    </div>
-  </section>
-
-  <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">10</span></button>
-    <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
-  </nav>
-
-  <section class="controls" id="controls">
-    <div class="chip-group" data-filter="bed" data-label="Beds">
-      <button class="chip active" data-val="all">All</button>
-      <button class="chip" data-val="0">Studio</button>
-      <button class="chip" data-val="1">1 BR</button>
-      <button class="chip" data-val="2">2 BR</button>
-    </div>
-    <div class="chip-group" data-filter="price" data-label="Price">
-      <button class="chip active" data-val="all">Any</button>
-      <button class="chip" data-val="under1200">&lt; $1,200</button>
-      <button class="chip" data-val="1200to1500">$1,200–1,500</button>
-    </div>
-    <div class="sort-wrap">
-      <label for="sort">Sort</label>
-      <select id="sort">
-        <option value="score">Best fit</option>
-        <option value="price">Cheapest first</option>
-        <option value="distance">Closest first</option>
-        <option value="posted">Newest first</option>
-      </select>
-    </div>
-  </section>
-
-  <div class="list-with-map">
-    <main class="list-column">
-      <section class="view active" id="view-inbox">
-        <ol class="listings" id="listings"></ol>
-      </section>
-
-      <section class="view" id="view-shortlist">
-        <ol class="listings" id="shortlist-listings"></ol>
-        <p class="empty" id="shortlist-empty" style="display:none">No starred listings yet. Star ★ entries in the Inbox to build a shortlist.</p>
-      </section>
-
-      <!-- view-map removed: map is now persistent on the right (desktop) or inline below the list (mobile) -->
-      <aside class="map-inline" id="map-inline">
-        <div class="map-panel-caption">
-          <span class="caption-text">listings near 370 jay st</span>
-          <select class="tile-select" data-tile-select aria-label="Map style"></select>
-        </div>
-        <div id="map-mobile"></div>
-      </aside>
-    </main>
-    <aside class="map-panel" id="map-panel">
-      <div class="map-panel-caption">
-        <span class="caption-text">listings near 370 Jay St — hover an entry to highlight its pin</span>
-        <select class="tile-select" data-tile-select aria-label="Map style"></select>
-      </div>
-      <div id="map-side"></div>
-    </aside>
-  </div>
-
-  <footer class="colophon">
-    <h3>Hand-picked listings</h3><ul><li><a href="https://amberstudent.com/places/bernard-brooklyn-home-brooklyn-2207181201880" target="_blank" rel="noopener">Bernard Brooklyn — managed student housing (AmberStudent)</a></li></ul>
-    <h3>Other places worth checking manually</h3>
-    <ul><li><a href="https://amberstudent.com/places/search/new-york-university-1811221663188" target="_blank" rel="noopener">AmberStudent</a> — managed student housing (per-room, booking-style)</li><li><a href="https://streeteasy.com/for-rent/brooklyn/price:800-1500%7Cbeds%3C=2" target="_blank" rel="noopener">StreetEasy</a> — NYC&#x27;s biggest rental marketplace</li><li><a href="https://www.padmapper.com/apartments/brooklyn-ny?maxRent=1500" target="_blank" rel="noopener">PadMapper</a> — aggregator with map view</li></ul>
-    <p class="small">Khoj · refreshed daily by GitHub Actions at 13:00 UTC · <a href="https://github.com/animeshUX/khoj" target="_blank" rel="noopener">source</a> · state persists per device in localStorage</p>
-  </footer>
-</div>
+<header id="khoj-topbar"></header>
+<main id="khoj-app">
+  <aside id="khoj-list"></aside>
+  <div id="khoj-map"></div>
+  <aside id="khoj-panel" aria-hidden="true"></aside>
+</main>
 
 <script id="payload" type="application/json">[{"n":1,"url":"https://newyork.craigslist.org/brk/apa/d/brooklyn-junior-1bed-loft-style-with/7936701356.html","title":"Junior 1Bed Loft Style with Great Closet Space & Natural Light","price":1159,"bedrooms":1,"neighborhood":"Prospect Heights","lat":40.679,"lng":-73.9644,"posted":"2026-05-25","postedRel":"today","description":"Junior 1Bed Loft Style with Great Closet Space & Natural Light 405 Sterling Pl #2A, Brooklyn, NY Junior 1 Bed | 1 Bath | Prospect Heights Charming top-floor junior 1-bedroom apartment located in the heart of Prospect Heights. This quiet back-facing unit offers a peaceful atmosphere, excellent natural light, and a loft-style layout with re\u2026","distance":1.5261487076251856,"walkMin":31,"score":35,"tags":[],"source":""},{"n":2,"url":"https://newjersey.craigslist.org/apa/d/jersey-city-huge-hi-ceiling-live-work/7934545621.html","title":"HUGE HI-CEILING LIVE/WORK LOFT - GROVE ST. PATH STATION - DOWNTOWN","price":1100,"bedrooms":0,"neighborhood":"JERSEY CITY","lat":40.719851,"lng":-74.038498,"posted":"2026-05-15","postedRel":"10 days ago","description":"HI CEILING WORK/LIVE LOFT - OPEN SPACE - DOWNTOWN EASY COMMUTE. 1/2 minute walk to Grove St. PATH station. 1 minute walk to Newark Avenue shopping district. Walk to restaurants, bars & bistros. Walk to Waterfront, supermarket, parks. Hardwood floors. Very quite and peaceful apartment. No upper floor apartment. 1 apartment per floor in 3 s\u2026","distance":3.281923091257976,"walkMin":66,"score":18,"tags":[],"source":""},{"n":3,"url":"https://newyork.craigslist.org/que/apa/d/brooklyn-huge-spacious-1br-with-ample/7936586247.html","title":"Huge & Spacious 1BR with Ample Closet Space \u2013 Westminster Rd Location!","price":1130,"bedrooms":1,"neighborhood":"Prospect Park South","lat":40.6424,"lng":-73.9758,"posted":"2026-05-25","postedRel":"today","description":"Huge & Spacious 1BR with Ample Closet Space \u2013 Prime Westminster Rd Location! Westminster Rd, Brooklyn, NY 1 Bed | 1 Bath Step into this incredibly expansive one-bedroom apartment offering the kind of space that is truly rare to find in Brooklyn. Perfectly situated in a highly sought-after neighborhood, this home combines oversized interio\u2026","distance":3.5339249015514507,"walkMin":71,"score":16,"tags":[],"source":""},{"n":4,"url":"https://streeteasy.com/building/1273-rogers-avenue-brooklyn/2d?utm_campaign=rental_listing&utm_medium=share&utm_source=web&lstt=7y9AK3TginYu4BbxLD_B2NEEj32YA-ktWuTZJb3NHsfJnT_rFqvjo8NzztngzrvEwV0uGcy1twseuTji","title":"1273 Rogers Avenue #2D in Flatbush, Brooklyn","price":1500,"bedrooms":1,"neighborhood":"Brooklyn","lat":40.6387709,"lng":-73.9509541,"posted":"2026-05-25","postedRel":"today","description":"1273 Rogers Avenue, Brooklyn, Ny, 11226: *Welcoming 1BR with Great Flow & Comfortable Everyday Living* This charming 1-bedroom home offers a layout that feels both .","distance":4.187745227523197,"walkMin":84,"score":0,"tags":[],"source":"streeteasy.com"},{"n":5,"url":"https://amberstudent.com/places/141-hart-st-brooklyn-2305121841186?gallery=true&galleryId=267205&tab=all","title":"141 Hart St Brooklyn Student Apartments","price":null,"bedrooms":5,"neighborhood":"Brooklyn","lat":40.6936529,"lng":-73.9455606,"posted":"2026-05-25","postedRel":"today","description":"141 Hart St Brooklyn near Pratt Institute offers furnished rooms with Wi-Fi, AC, rooftop, and backyard. It is ideal for students seeking comfort and connectivity.","distance":2.1770496162023023,"walkMin":44,"score":0,"tags":["Furnished"],"source":"amberstudent.com"},{"n":6,"url":"https://streeteasy.com/building/354-93-street-brooklyn/1?utm_campaign=rental_listing&utm_medium=share&utm_source=web&lstt=mXMIw2l602eCDgZ8UYod8bVqGCF_D3CLiNjRkuRpdVmS4MjaoMey6kUwR4jT7eKUQ2ijXudmY27AKW1W","title":"354 93rd Street #1 in Fort Hamilton, Brooklyn","price":1395,"bedrooms":null,"neighborhood":"Fort Hamilton","lat":40.6178142,"lng":-74.0316646,"posted":"2026-05-25","postedRel":"today","description":"354 93rd Street, Brooklyn, Ny, 11209: This 1 room studio apartment is located in a well-kept, prewar building in Bay Ridge. Enjoy a wide variety of nearby shops and .","distance":5.687904427230053,"walkMin":114,"score":0,"tags":[],"source":"streeteasy.com"},{"n":7,"url":"https://www.padmapper.com/rentals/20493753p/1-bedroom-1-bath-apartment-at-99-kingsland-ave-new-york-ny-11222#back=%2Fapartments%2Fbrooklyn-ny%2Funder-1500%3Fbox%3D-74.04241%2C40.56616%2C-73.83336%2C40.73944","title":"99 Kingsland Ave for $1,330/month on PadMapper","price":1330,"bedrooms":1,"neighborhood":"Brooklyn","lat":40.7198448,"lng":-73.9408381,"posted":"2026-05-25","postedRel":"today","description":"99 Kingsland Ave is a 1 bed, 1 bath apartment in Williamsburg, New York. This apartment is listed for rent at $1,330/month. Search for other sublets, houses and apartment rentals in New York, then use our bedroom, bathroom and rent price filters to find your perfect home.","distance":3.0549155999662165,"walkMin":61,"score":0,"tags":[],"source":"padmapper.com"},{"n":8,"url":"https://amberstudent.com/places/bernard-brooklyn-home-brooklyn-2207181201880","title":"Bernard Brooklyn Home, New York City Student Apartments","price":940,"bedrooms":null,"neighborhood":"Bedford-Stuyvesant","lat":40.6807054,"lng":-73.9443414,"posted":"2026-05-25","postedRel":"today","description":"Explore Bernard Brooklyn Home student housing in New York City with amber. Choose from a range of ensuites and non esnuites with top-notch amenties located near Medgar Evers College.","distance":2.3934673433181493,"walkMin":48,"score":0,"tags":[],"source":"amberstudent.com"},{"n":9,"url":"https://amberstudent.com/places/cornelius-bushwick-home-brooklyn-2207158468241","title":"Cornelius Brooklyn Home, New York City Student Apartments","price":null,"bedrooms":null,"neighborhood":"Bushwick","lat":40.6879205,"lng":-73.9180248,"posted":"2026-05-25","postedRel":"today","description":"Explore Cornelius Brooklyn Home student housing in Brooklyn near Pratt Institute. It offers room types like ensuites and non-ensuites including amenities like a coffeemaker.","distance":3.6390438573952326,"walkMin":73,"score":0,"tags":[],"source":"amberstudent.com"},{"n":10,"url":"https://amberstudent.com/places/crown-1162-new-york-2406222677253","title":"Crown 1162 New York 11216","price":null,"bedrooms":null,"neighborhood":"Brooklyn","lat":40.6777444,"lng":-73.9537308,"posted":"2026-05-25","postedRel":"today","description":"Crown 1162 New York features comfortable student apartments in Brooklyn near Pratt Institute with private rooms, shared spaces, premium amenities, and easy connectivity.","distance":2.0365397484653327,"walkMin":41,"score":0,"tags":[],"source":"amberstudent.com"}]</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
