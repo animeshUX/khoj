@@ -117,32 +117,37 @@ const REGISTRY = {
   },
 };
 
-export function createOverlays(state, map) {
+export function createOverlays(state, mapApi) {
+  const leafletMap = mapApi.map;
   const layers = {};   // name -> L.GeoJSON
   const loaded = {};   // name -> Promise<L.GeoJSON>
 
   async function load(name) {
     if (loaded[name]) return loaded[name];
     loaded[name] = fetch(REGISTRY[name].path)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`${REGISTRY[name].path}: HTTP ${r.status}`);
+        return r.json();
+      })
       .then(geo => {
         const layer = REGISTRY[name].build(geo);
         layers[name] = layer;
         return layer;
-      });
+      })
+      .catch(err => { delete loaded[name]; throw err; });
     return loaded[name];
   }
 
   async function show(name) {
     const layer = await load(name);
-    if (!map.map.hasLayer(layer)) {
-      layer.addTo(map.map);
+    if (!leafletMap.hasLayer(layer)) {
+      layer.addTo(leafletMap);
       if (name === 'commute_zone') layer.bringToBack();
     }
   }
 
   function hide(name) {
-    if (layers[name] && map.map.hasLayer(layers[name])) map.map.removeLayer(layers[name]);
+    if (layers[name] && leafletMap.hasLayer(layers[name])) leafletMap.removeLayer(layers[name]);
   }
 
   async function toggle(name, on) { on ? await show(name) : hide(name); }
