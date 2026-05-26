@@ -61,16 +61,13 @@ const REGISTRY = {
   crime: {
     path: './data/crime.geojson',
     build(geo) {
-      // Quintile breaks on felonies-per-sq-mi. Raw counts collapse the visual
-      // (most precincts are above any single threshold), and they're biased by
-      // precinct area. Density quintiles give an ordinal "lower / higher than
-      // the rest of NYC" signal that's actually legible at a glance.
-      const densities = geo.features
-        .map(f => f.properties?.felonies_per_sqmi || 0)
-        .sort((a, b) => a - b);
-      const q = (p) => densities[Math.floor(densities.length * p)] || 0;
-      const breaks = [q(0.2), q(0.4), q(0.6), q(0.8)];
-      const FILL_OPACITY = [0.10, 0.22, 0.36, 0.52, 0.68];
+      // Quintile breaks on felonies-per-sq-mi, computed via simple-statistics.
+      // Density (not raw count) avoids precinct-area bias. The colour ramp goes
+      // pale-cream → deep crimson in Lab space (perceptually-uniform steps),
+      // so the gradient reads as a real ramp rather than a hazy wash.
+      const densities = geo.features.map(f => f.properties?.felonies_per_sqmi || 0);
+      const breaks = ss.quantile(densities, [0.2, 0.4, 0.6, 0.8]);
+      const FILL = chroma.scale(['#FDE4E5', '#8C2026']).mode('lab').colors(5);
       function bin(d) {
         for (let i = 0; i < breaks.length; i++) if (d <= breaks[i]) return i;
         return 4;
@@ -80,7 +77,7 @@ const REGISTRY = {
           const d = f.properties?.felonies_per_sqmi || 0;
           return {
             color: '#8C2026', weight: 0.6, opacity: 0.45,
-            fillColor: '#8C2026', fillOpacity: FILL_OPACITY[bin(d)],
+            fillColor: FILL[bin(d)], fillOpacity: 0.62,
           };
         },
         onEachFeature: (feat, layer) => {
