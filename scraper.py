@@ -434,20 +434,6 @@ def _fetch_external_listing(url: str, seed: dict | None = None) -> dict:
     }
 
 
-def _read_manual_urls(path: str) -> list[str]:
-    """Read URLs from a text file (one per line, blank/# comment lines ignored). Missing file = empty list."""
-    if not os.path.exists(path):
-        return []
-    urls = []
-    for line in open(path, encoding="utf-8"):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        # Allow "URL | optional note" — we just take the URL for now
-        urls.append(line.split("|", 1)[0].strip())
-    return urls
-
-
 def _read_submissions_csv(path: str) -> list[dict]:
     """Read rows from a Google-Sheets-style intake CSV (Timestamp, URL, Submitted by, Note).
 
@@ -532,8 +518,6 @@ def main():
                     help="Probe multiple Craigslist endpoints to identify what's blocked. Run this when --sanity-check fails.")
     ap.add_argument("--pages-mode", action="store_true",
                     help="Write outputs into docs/ (latest + dated archives) for GitHub Pages hosting.")
-    ap.add_argument("--manual-urls", default="manual_urls.txt",
-                    help="Path to a file of extra URLs to include (one per line, # comments allowed). Default: manual_urls.txt")
     ap.add_argument("--submissions", default="submissions.csv",
                     help="Path or URL to a CSV (Timestamp, URL, Submitted by, Note) of family-submitted "
                          "listings. Default: submissions.csv. Override with env var KHOJ_SUBMISSIONS_URL.")
@@ -579,14 +563,13 @@ def main():
         listing.score = score(listing)
         results.append(listing)
 
-    # Family-submitted URLs (manual_urls.txt + submissions.csv intake from a Google Sheet).
+    # Family-submitted URLs (submissions.csv intake from a Google Sheet via Apps Script).
     # These bypass the hard filters — if someone took the time to submit it, surface it
     # regardless of price/distance. Craigslist URLs get the full parse+score pipeline;
     # everything else falls back to OpenGraph metadata (live fetch → Apps Script seed →
     # URL slug) so non-Craigslist submissions always surface, even when the source site
     # strips metadata or returns 403 to the CI runner's datacenter IP.
-    manual_items = [{"url": u} for u in _read_manual_urls(args.manual_urls)]
-    extra_items = manual_items + _read_submissions_csv(submissions_path)
+    extra_items = _read_submissions_csv(submissions_path)
     n_extra_new = n_extra_dup = 0
     for item in extra_items:
         url = item["url"]

@@ -14,8 +14,8 @@ Khoj is a daily-updated Craigslist apartment report for an incoming NYU Tandon *
 |---|---|
 | `scraper.py` | Pulls Craigslist Brooklyn apartments, filters by price/distance/recency, scores by fit |
 | `report.py` | Renders the editorial-dashboard HTML report |
-| `manual_urls.txt` | Append-only file of Craigslist URLs aunt/uncle text in; scraper merges them with scraped results (bypasses hard filters, still scored) |
-| `submissions.csv` | Google-Sheets-style intake file (Timestamp, URL, Submitted by, Note); also merged into the report. Non-URL cells skipped with a warning. `submissions_template.csv` is the empty header for the shared Sheet. |
+| `submissions.csv` / Apps Script Web App | Google-Sheets-style intake (Timestamp, URL, Submitted by, Note). Read locally as CSV or via `KHOJ_SUBMISSIONS_URL` env var (the Apps Script Web App resolves rich-text hyperlinks and pre-fetches OG metadata before serving as CSV). `submissions_template.csv` is the empty header for the shared Sheet. |
+| `submissions/*.md` | Obsidian Web Clipper drops (Phase 1 of the pivot, see `PLAN.md`) — gitignored by default, see `submissions/README.md`. |
 | `.github/workflows/scrape.yml` | Daily cron + on-demand trigger; runs scraper, commits `docs/` back to main |
 | `docs/index.html` | What GitHub Pages serves at https://animeshux.github.io/khoj/ — **live, Pages enabled** |
 | `docs/apartments_YYYY-MM-DD.{html,csv}` | Daily archive |
@@ -53,12 +53,13 @@ python scraper.py --pages-mode      # writes to docs/ the way the cron does
 python scraper.py --diagnose        # probe endpoints when --sanity-check 403s
 ```
 
-**Two intake paths for human-submitted URLs:**
+**Intake path for human-submitted URLs:**
 
-1. **`manual_urls.txt`** — one URL per line, `#` comments OK, optional ` | note` suffix. Used when you copy a URL someone texted you and paste it in. Read by `_read_manual_urls()` in scraper.py.
-2. **`submissions.csv` OR a `KHOJ_SUBMISSIONS_URL` env var** — Google-Sheets-style intake (`Timestamp, URL, Submitted by, Note`). `_read_submissions_csv()` accepts either a local CSV path or an http(s) URL — typically an Apps Script Web App `doGet` endpoint serving the live sheet (`?key=<secret>` for auth). The workflow injects `KHOJ_SUBMISSIONS_URL` from a GitHub repo secret so the URL never lives in the repo. Rows whose URL cell isn't actually a link are skipped with a warning — common when someone pastes the page title by accident.
+**`submissions.csv` OR a `KHOJ_SUBMISSIONS_URL` env var** — Google-Sheets-style intake (`Timestamp, URL, Submitted by, Note`). `_read_submissions_csv()` accepts either a local CSV path or an http(s) URL — typically an Apps Script Web App `doGet` endpoint serving the live sheet (`?key=<secret>` for auth). The workflow injects `KHOJ_SUBMISSIONS_URL` from a GitHub repo secret so the URL never lives in the repo. The Apps Script also resolves rich-text hyperlinks (when a cell shows a title but has a link attached) and pre-fetches OG metadata from Google's IP space — see `apps_script.gs`.
 
-Both paths bypass the price/distance/recency hard filters but still get scored. Either way, commit and push; the Action picks them up on the next scheduled run or on demand from the Actions tab.
+Submitted URLs bypass the price/distance/recency hard filters but still get scored. The Action picks them up on the next scheduled run or on demand from the Actions tab.
+
+A second markdown-based intake (Obsidian Web Clipper → `submissions/*.md`) is in the pivot plan — see `PLAN.md`.
 
 ## DO NOT — privacy + scope
 
