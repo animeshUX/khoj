@@ -66,6 +66,24 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Listing pin: teardrop SVG with paper-cream halo. Tier varies size + color.
+const PIN_TIER = {
+  low:  { w: 22, h: 29, fill: '#93857A' },
+  mid:  { w: 26, h: 34, fill: '#8C2026' },
+  high: { w: 30, h: 40, fill: '#8C2026' },
+};
+function pinSvg(tier) {
+  const t = PIN_TIER[tier] || PIN_TIER.mid;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="${t.w}" height="${t.h}" aria-hidden="true">
+    <path d="M12 .5C5.65.5.5 5.65.5 12c0 8.6 11.5 19.5 11.5 19.5S23.5 20.6 23.5 12C23.5 5.65 18.35.5 12 .5z" fill="${t.fill}" stroke="#F3ECDE" stroke-width="2"/>
+    <circle cx="12" cy="12" r="3.5" fill="#F3ECDE"/>
+  </svg>`;
+}
+
+const CAMPUS_STAR_SVG =
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
+    <path d="M12 1.5l2.92 7.31 7.83.6-6 5.1 1.84 7.66L12 17.84 5.41 22.17l1.84-7.66-6-5.1 7.83-.6L12 1.5z" fill="#8C2026" stroke="#F3ECDE" stroke-width="1.6"/>
+  </svg>`;
 
 export function createMap(state, mountId = 'khoj-map') {
   const CAMPUS = [window.KHOJ.campus.lat, window.KHOJ.campus.lng];
@@ -83,6 +101,8 @@ export function createMap(state, mountId = 'khoj-map') {
     const opts = { attribution: cfg.attribution, maxZoom: cfg.maxZoom };
     if (cfg.subdomains) opts.subdomains = cfg.subdomains;
     currentTileLayer = L.tileLayer(cfg.url, opts).addTo(mapInstance);
+    // Satellite stays vivid; everything else gets the editorial desat treatment.
+    mapInstance.getContainer().classList.toggle('khoj-tile-vivid', key === 'satellite');
   }
 
   function drawDistanceRings() {
@@ -115,10 +135,12 @@ export function createMap(state, mountId = 'khoj-map') {
       if (l.lat == null || l.lng == null) return;
       const score = l.score ?? 0;
       const tier = score < 0.4 ? 'low' : score < 0.7 ? 'mid' : 'high';
+      const t = PIN_TIER[tier];
       const icon = L.divIcon({
         className: 'khoj-pin',
-        html: `<span class="khoj-pin-dot" data-score-tier="${tier}"></span>`,
-        iconSize: [18, 18],
+        html: `<span class="khoj-pin-dot" data-score-tier="${tier}">${pinSvg(tier)}</span>`,
+        iconSize: [t.w, t.h],
+        iconAnchor: [t.w / 2, t.h],
       });
       const marker = L.marker([l.lat, l.lng], { icon });
       const bedTxt = l.beds === 0 ? 'Studio'
@@ -158,13 +180,18 @@ export function createMap(state, mountId = 'khoj-map') {
   drawDistanceRings();
 
   L.marker(CAMPUS, {
-    icon: L.divIcon({ className: 'khoj-pin is-campus', iconSize: [20, 20] }),
+    icon: L.divIcon({
+      className: 'khoj-pin is-campus',
+      html: CAMPUS_STAR_SVG,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    }),
     zIndexOffset: 1000,
     interactive: false,
   }).addTo(mapInstance).bindTooltip('NYU Tandon · 370 Jay', {
     permanent: true,
     direction: 'right',
-    offset: [14, 0],
+    offset: [18, 0],
     className: 'campus-tooltip',
   });
 

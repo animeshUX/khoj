@@ -521,19 +521,8 @@ body {
 .leaflet-popup-content b { font-family: var(--serif-display); font-weight: 600; }
 .leaflet-popup-content a { color: var(--crimson); }
 
-.khoj-pin {
-  background: var(--ink);
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-.khoj-pin.is-campus {
-  background: var(--crimson);
-  width: 20px; height: 20px;
-  box-shadow: 0 0 0 4px var(--paper), 0 2px 6px rgba(140,32,38,0.4);
-}
+/* Legacy .khoj-pin block removed — the active rules live further down (line ~679).
+   Pin styling is now SVG-driven; see .khoj-pin-dot and pinSvg() in map.js. */
 
 /* ----------------------------------------------------------- Colophon */
 .colophon {
@@ -677,26 +666,14 @@ body {
 .leaflet-popup-content a { color: var(--crimson); }
 
 .khoj-pin {
-  background: var(--ink);
-  border: 2px solid var(--paper);
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  background: transparent;
+  border: none;
   cursor: pointer;
-}
-.khoj-pin.is-campus {
-  background: var(--crimson);
-  width: 20px; height: 20px;
-  box-shadow: 0 0 0 4px var(--paper), 0 2px 6px rgba(140,32,38,0.4);
+  transition: transform 140ms ease, filter 140ms ease;
 }
 .khoj-pin.is-active {
-  background: var(--crimson) !important;
-  width: 22px !important; height: 22px !important;
-  box-shadow: 0 0 0 5px rgba(140, 32, 38, 0.22),
-              0 3px 10px rgba(0, 0, 0, 0.35) !important;
-  transform: scale(1.15);
+  transform: scale(1.18);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
   z-index: 1000 !important;
 }
 
@@ -865,18 +842,14 @@ body {
 
 #khoj-map.dimmed { opacity: 0.7; transition: opacity 150ms; }
 
-/* ----------------------------------------------------------- Pin dot (score-tier) */
-.khoj-pin-dot {
-  display: block; border-radius: 50%; border: 2px solid var(--ink);
-  background: var(--ink-mute); box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  transition: transform 120ms;
-}
-.khoj-pin-dot[data-score-tier="low"]  { width: 10px; height: 10px; }
-.khoj-pin-dot[data-score-tier="mid"]  { width: 14px; height: 14px; }
-.khoj-pin-dot[data-score-tier="high"] { width: 18px; height: 18px;
-                                        background: var(--crimson); border-color: var(--crimson); }
-.khoj-pin-dot[data-starred="true"] { box-shadow: 0 0 0 3px var(--gold); }
+/* ----------------------------------------------------------- Pin dot wrapper (now contains SVG teardrop) */
+.khoj-pin-dot { display: block; line-height: 0; transition: transform 120ms; }
+.khoj-pin-dot[data-starred="true"] svg path { stroke: var(--gold); stroke-width: 3; }
 .khoj-pin-dot[data-hidden="true"]  { opacity: 0.3; }
+
+/* ----------------------------------------------------------- Tile desaturation (editorial pop) */
+.leaflet-tile-pane { filter: saturate(0.62) brightness(1.04) contrast(0.96); transition: filter 200ms; }
+.khoj-tile-vivid .leaflet-tile-pane { filter: none; }
 
 /* ----------------------------------------------------------- Enrichment card blocks */
 .khoj-panel-enrichment {
