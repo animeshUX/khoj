@@ -27,6 +27,33 @@ const TILE_PROVIDERS = {
     attribution: '&copy; OpenStreetMap, &copy; memomaps.de',
     maxZoom: 18,
   },
+  voyager: {
+    label: 'Voyager',
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap, &copy; CARTO',
+    maxZoom: 20,
+    subdomains: 'abcd',
+  },
+  dark: {
+    label: 'Dark',
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap, &copy; CARTO',
+    maxZoom: 20,
+    subdomains: 'abcd',
+  },
+  gray: {
+    label: 'Gray',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri',
+    maxZoom: 16,
+  },
+  humanitarian: {
+    label: 'Humanitarian',
+    url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap, Tiles courtesy of HOT',
+    maxZoom: 19,
+    subdomains: 'abc',
+  },
 };
 const TILE_DEFAULT = 'streets';
 const TILE_KEY = 'khoj.tile';
@@ -60,21 +87,6 @@ export function createMap(state, mountId = 'khoj-map') {
     const opts = { attribution: cfg.attribution, maxZoom: cfg.maxZoom };
     if (cfg.subdomains) opts.subdomains = cfg.subdomains;
     currentTileLayer = L.tileLayer(cfg.url, opts).addTo(mapInstance);
-  }
-
-  function setupTileSelects() {
-    const choice = getTileChoice();
-    document.querySelectorAll('[data-tile-select]').forEach(sel => {
-      sel.innerHTML = Object.entries(TILE_PROVIDERS).map(([k, p]) =>
-        `<option value="${k}"${k === choice ? ' selected' : ''}>${p.label}</option>`).join('');
-      sel.addEventListener('change', () => {
-        try { localStorage.setItem(TILE_KEY, sel.value); } catch {}
-        applyTile(sel.value);
-        document.querySelectorAll('[data-tile-select]').forEach(s => {
-          if (s !== sel) s.value = sel.value;
-        });
-      });
-    });
   }
 
   function drawDistanceRings() {
@@ -145,7 +157,6 @@ export function createMap(state, mountId = 'khoj-map') {
 
   mapInstance = L.map(mountId, { scrollWheelZoom: false }).setView(CAMPUS, 13);
   applyTile(getTileChoice());
-  setupTileSelects();
 
   drawDistanceRings();
 
@@ -194,7 +205,11 @@ export function createMap(state, mountId = 'khoj-map') {
     }
   });
 
-  return { map: mapInstance, markerByUrl, mountLayersControl };
+  return {
+    map: mapInstance,
+    markerByUrl,
+    mountLayersControl: (state, overlaysApi) => mountLayersControl(state, overlaysApi, applyTile),
+  };
 }
 
 const LAYER_LABELS = {
@@ -206,23 +221,30 @@ const LAYER_LABELS = {
   commute_zone:    "Commute zone",
 };
 
-function mountLayersControl(state, overlaysApi) {
+function mountLayersControl(state, overlaysApi, applyTile) {
   const ctrl = L.control({ position: "topright" });
   ctrl.onAdd = () => {
     const div = L.DomUtil.create("div", "khoj-layers-control");
     const layers = state.get("layers") || {};
-    div.innerHTML = "<h4>Layers</h4>" + Object.entries(LAYER_LABELS).map(([key, label]) =>
-      `<label><input type="checkbox" data-layer="${key}" ${layers[key] ? "checked" : ""}> ${label}</label>`
-    ).join("");
+    const tile = getTileChoice();
+    const baseOpts = Object.entries(TILE_PROVIDERS).map(([k, p]) =>
+      `<option value="${k}"${k === tile ? " selected" : ""}>${p.label}</option>`).join("");
+    div.innerHTML =
+      `<h4>Base</h4><select data-tile-select class="khoj-base-select">${baseOpts}</select>` +
+      "<h4>Layers</h4>" + Object.entries(LAYER_LABELS).map(([key, label]) =>
+        `<label><input type="checkbox" data-layer="${key}" ${layers[key] ? "checked" : ""}> ${label}</label>`
+      ).join("");
     L.DomEvent.disableClickPropagation(div);
     div.addEventListener("change", (e) => {
-      if (e.target.matches("[data-layer]")) {
-        const key = e.target.dataset.layer;
-        const on = e.target.checked;
+      const t = e.target;
+      if (t.matches("[data-layer]")) {
         const cur = { ...(state.get("layers") || {}) };
-        cur[key] = on;
+        cur[t.dataset.layer] = t.checked;
         state.set("layers", cur);
-        overlaysApi.toggle(key, on);
+        overlaysApi.toggle(t.dataset.layer, t.checked);
+      } else if (t.matches("[data-tile-select]")) {
+        try { localStorage.setItem(TILE_KEY, t.value); } catch {}
+        applyTile(t.value);
       }
     });
     return div;
