@@ -1,5 +1,11 @@
 const PAYLOAD = JSON.parse(document.getElementById('payload').textContent);
 
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 const SORTS = {
   score:   (a, b) => (b.score ?? 0) - (a.score ?? 0),
   price:   (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity),
@@ -15,11 +21,11 @@ export function createList(state, mountId = "khoj-list", map = null) {
     const beds = l.bedrooms == null ? "?" : (l.bedrooms === 0 ? "Studio" : `${l.bedrooms}BR`);
     const score = l.score == null ? "" : `<span class="khoj-row-score">${l.score}</span>`;
     return `<article class="khoj-row" data-id="${l.url}" tabindex="0"
-              aria-label="${l.title}, ${price}">
+              aria-label="${esc(l.title)}, ${price}">
       ${score}
-      <h3>${l.title}</h3>
+      <h3>${esc(l.title)}</h3>
       <p class="khoj-row-meta">${price} · ${beds}</p>
-      <p class="khoj-row-hood">${l.neighborhood ?? ""}</p>
+      <p class="khoj-row-hood">${esc(l.neighborhood ?? "")}</p>
     </article>`;
   }
 
