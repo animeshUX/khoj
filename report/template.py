@@ -58,100 +58,12 @@ def render(payload: dict) -> str:
 <link rel="stylesheet" href="khoj/khoj.css">
 </head>
 <body>
-<div class="paper">
-  <header class="masthead">
-    <div class="masthead-strap">
-      <span>BROOKLYN RENTALS · NYU TANDON BEAT</span>
-      <span>VOL. I · NO. {issue_num}</span>
-      <span>{date_str}</span>
-    </div>
-    <h1 class="masthead-title">The Brooklyn <em>Apartment</em> Inquirer</h1>
-    <p class="masthead-sub">A daily digest of rentals near 370 Jay Street, filtered for student budgets ($800–$1,500) and stripped of telemarketing noise.</p>
-  </header>
-
-  <section class="stats">
-    <div class="stat">
-      <span class="stat-label">Listings</span>
-      <span class="stat-value">{len(listings)}</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Cheapest</span>
-      <span class="stat-value">{f"${cheapest:,}" if cheapest is not None else "—"}</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Closest</span>
-      <span class="stat-value">{f"{closest:.2f}" if closest is not None else "—"} <span style="font-size:0.7em;color:var(--ink-mute);">mi</span></span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">Shortlist</span>
-      <span class="stat-value" id="shortlist-stat">0</span>
-    </div>
-  </section>
-
-  <nav class="tabs" role="tablist">
-    <button class="tab active" data-tab="inbox" role="tab">Inbox<span class="tab-count" id="inbox-count">{len(listings)}</span></button>
-    <button class="tab" data-tab="shortlist" role="tab">Shortlist<span class="tab-count" id="short-count">0</span></button>
-  </nav>
-
-  <section class="controls" id="controls">
-    <div class="chip-group" data-filter="bed" data-label="Beds">
-      <button class="chip active" data-val="all">All</button>
-      <button class="chip" data-val="0">Studio</button>
-      <button class="chip" data-val="1">1 BR</button>
-      <button class="chip" data-val="2">2 BR</button>
-    </div>
-    <div class="chip-group" data-filter="price" data-label="Price">
-      <button class="chip active" data-val="all">Any</button>
-      <button class="chip" data-val="under1200">&lt; $1,200</button>
-      <button class="chip" data-val="1200to1500">$1,200–1,500</button>
-    </div>
-    <div class="sort-wrap">
-      <label for="sort">Sort</label>
-      <select id="sort">
-        <option value="score">Best fit</option>
-        <option value="price">Cheapest first</option>
-        <option value="distance">Closest first</option>
-        <option value="posted">Newest first</option>
-      </select>
-    </div>
-  </section>
-
-  <div class="list-with-map">
-    <main class="list-column">
-      <section class="view active" id="view-inbox">
-        <ol class="listings" id="listings"></ol>
-      </section>
-
-      <section class="view" id="view-shortlist">
-        <ol class="listings" id="shortlist-listings"></ol>
-        <p class="empty" id="shortlist-empty" style="display:none">No starred listings yet. Star ★ entries in the Inbox to build a shortlist.</p>
-      </section>
-
-      <!-- view-map removed: map is now persistent on the right (desktop) or inline below the list (mobile) -->
-      <aside class="map-inline" id="map-inline">
-        <div class="map-panel-caption">
-          <span class="caption-text">listings near 370 jay st</span>
-          <select class="tile-select" data-tile-select aria-label="Map style"></select>
-        </div>
-        <div id="map-mobile"></div>
-      </aside>
-    </main>
-    <aside class="map-panel" id="map-panel">
-      <div class="map-panel-caption">
-        <span class="caption-text">listings near 370 Jay St — hover an entry to highlight its pin</span>
-        <select class="tile-select" data-tile-select aria-label="Map style"></select>
-      </div>
-      <div id="map-side"></div>
-    </aside>
-  </div>
-
-  <footer class="colophon">
-    {curated_block}
-    <h3>Other places worth checking manually</h3>
-    <ul>{other_items}</ul>
-    <p class="small">Khoj · refreshed daily by GitHub Actions at 13:00 UTC · <a href="https://github.com/animeshUX/khoj" target="_blank" rel="noopener">source</a> · state persists per device in localStorage</p>
-  </footer>
-</div>
+<header id="khoj-topbar"></header>
+<main id="khoj-app">
+  <aside id="khoj-list"></aside>
+  <div id="khoj-map"></div>
+  <aside id="khoj-panel" aria-hidden="true"></aside>
+</main>
 
 <script id="payload" type="application/json">{payload_json}</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
