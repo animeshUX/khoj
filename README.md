@@ -1,6 +1,6 @@
-# Khoj — Brooklyn apartments near NYU Tandon
+# Khoj — Brooklyn apartments near a downtown campus
 
-A daily-refreshed list of student-affordable Brooklyn apartments, presented as a clean newspaper-style page anyone can open in a browser.
+A daily-refreshed list of student-affordable Brooklyn apartments, presented as a clean newspaper-style page anyone can open in a browser. The campus coordinates and budget bounds live in `scraper.py`; tweak them to point at your own school / target.
 
 **Read the latest report:** https://animeshux.github.io/khoj/
 
@@ -8,14 +8,14 @@ No login. No app to install. Works on phones. Bookmark the link and check it whe
 
 ## What it shows
 
-The page lists Brooklyn rentals every morning, filtered down to what an NYU Tandon student can actually afford:
+The page lists Brooklyn rentals every morning, filtered down to what a student can actually afford:
 
 - Price between **$800 and $1,500**
 - Studio, 1-bedroom, or 2-bedroom
 - Posted in the last two weeks
-- Within roughly a 30-minute commute of 370 Jay Street
+- Within roughly a 30-minute commute of the campus address pinned in `scraper.py`
 
-Each entry shows the price, the neighborhood, how far it is, a cleaned-up description (phone-number spam and "TEXT ASAP" noise removed), and a small compass diagram showing where the apartment sits relative to campus. Listings near a subway line or that mention being student-friendly get bumped up the list.
+Each entry shows the price, the neighborhood, how far it is, a cleaned-up description (phone-number spam and "TEXT ASAP" noise removed), and the map shows where it sits relative to campus. Listings near a subway line or that mention being student-friendly get bumped up the list.
 
 Three views inside the page:
 
@@ -27,7 +27,7 @@ You can **★ Star** ones you like, **Hide** ones that don't fit, and **✎ Note
 
 ## Sharing a listing you found yourself
 
-**Aunt or uncle submits via a Google Sheet.** They fill in a row in a shared Sheet (template provided in `submissions_template.csv`), and an Apps Script web app exposes it as CSV. The scraper reads from that endpoint via the `KHOJ_SUBMISSIONS_URL` repo secret. Rows whose URL cell isn't actually a link (or that are pasted as rich-text titles) are resolved or skipped by the Apps Script — see `apps_script.gs`.
+**A submitter adds a row to a shared Google Sheet.** Template in `submissions_template.csv`. An Apps Script web app exposes the sheet as CSV; the scraper reads it via the `KHOJ_SUBMISSIONS_URL` repo secret. Rows whose URL cell isn't actually a link (or that are pasted as rich-text titles) are resolved or skipped by the Apps Script — see `apps_script.gs`.
 
 A second intake path via Obsidian Web Clipper is being built — see `submissions/README.md` and `PLAN.md`.
 
