@@ -17,7 +17,7 @@ import math
 import os
 import re
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -35,6 +35,7 @@ ENRICH_CACHE_PATH  = CACHE_DIR / "enrich.json"
 
 UA = "Khoj-enrich/0.1 (personal apartment research; github.com/animeshUX/khoj)"
 TIMEOUT = 15
+OVERPASS_TIMEOUT = 30
 
 
 def _load_cache(path: Path) -> dict:
@@ -131,7 +132,7 @@ def geocode(address: str) -> dict | None:
 
 def _enrich_cache_key(lat: float, lng: float, kind: str) -> str:
     """Cache key: rounded coords (~111m precision) + weekly bucket + kind."""
-    week = datetime.utcnow().strftime("%Y-W%U")
+    week = datetime.now(timezone.utc).strftime("%Y-W%U")
     return f"{round(lat, 3)},{round(lng, 3)}|{week}|{kind}"
 
 
@@ -209,7 +210,7 @@ def noise(lat: float, lng: float) -> dict:
     if hit:
         return cached
 
-    since = (datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
+    since = (datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
     r = requests.get(
         "https://data.cityofnewyork.us/resource/erm2-nwe9.json",
         params={
@@ -249,7 +250,7 @@ def crime(lat: float, lng: float) -> dict:
     if hit:
         return cached
 
-    since = (datetime.utcnow() - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
+    since = (datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00")
     r = requests.get(
         "https://data.cityofnewyork.us/resource/5uac-w243.json",
         params={
@@ -292,7 +293,7 @@ def _overpass(query: str) -> list:
         "https://overpass-api.de/api/interpreter",
         data={"data": query},
         headers={"User-Agent": UA},
-        timeout=TIMEOUT,
+        timeout=OVERPASS_TIMEOUT,
     )
     r.raise_for_status()
     return r.json()["elements"]
