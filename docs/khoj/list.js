@@ -34,6 +34,17 @@ export function createList(state, mountId = "khoj-list", map = null) {
     const sortKey = state.get("sort") || "score";
     const visible = applyFilters(window.KHOJ.listings, state);
     const sorted = visible.sort(SORTS[sortKey] || SORTS.score);
+    if (sorted.length === 0) {
+      root.innerHTML = `<div class="khoj-empty">
+        <p>0 of ${window.KHOJ.listings.length} match</p>
+        <button id="khoj-reset">Reset filters</button>
+      </div>`;
+      root.querySelector("#khoj-reset").addEventListener("click", () => {
+        state.set("filters", window.KHOJ.filter_defaults);
+      });
+      document.getElementById("khoj-count").textContent = `0 of ${window.KHOJ.listings.length}`;
+      return;
+    }
     root.innerHTML = sorted.map(rowHtml).join("");
     const countEl = document.getElementById("khoj-count");
     if (countEl) countEl.textContent = `${sorted.length} of ${window.KHOJ.listings.length}`;

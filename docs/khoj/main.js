@@ -4,6 +4,7 @@ import { createList } from "./list.js";
 import { createPanel } from "./panel.js";
 import { createOverlays, createSelectionOverlays } from "./overlays.js";
 import { createFilters } from "./filters.js";
+import { createKeys } from "./keys.js";
 
 const state = createState({
   filters: window.KHOJ.filter_defaults,
@@ -17,6 +18,7 @@ createSelectionOverlays(state, map);
 map.mountLayersControl(state, overlays).addTo(map.map);
 createList(state, "khoj-list", map);
 createPanel(state, "khoj-panel");
+createKeys(state);
 
 state.subscribe("selectedId", (id) => {
   document.getElementById("khoj-map").classList.toggle("dimmed", !!id);
