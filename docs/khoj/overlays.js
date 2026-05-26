@@ -35,15 +35,19 @@ const REGISTRY = {
   noise: {
     path: './data/nta-noise.geojson',
     build(geo) {
+      // Smooth pale-cream → deep-gold ramp via chroma.js, normalized to the
+      // 90th percentile so a handful of party-noise outliers don't crush the
+      // visual contrast for the rest of the city. Lab-space interpolation
+      // keeps the steps perceptually even.
       const dens = geo.features.map(f => f.properties.noise_per_sqmi).sort((a, b) => a - b);
       const p90 = dens[Math.floor(dens.length * 0.9)] || 1;
+      const scale = chroma.scale(['#F2E8C7', '#7A5C1E']).mode('lab').domain([0, p90]);
       return L.geoJSON(geo, {
         style: (feat) => {
-          const d = feat.properties.noise_per_sqmi || 0;
-          const ratio = Math.min(d / p90, 1);
+          const d = Math.min(feat.properties.noise_per_sqmi || 0, p90);
           return {
-            color: '#8C2026', weight: 0.4, opacity: 0.35,
-            fillColor: '#8C2026', fillOpacity: 0.04 + ratio * 0.42,
+            color: '#7A5C1E', weight: 0.4, opacity: 0.4,
+            fillColor: scale(d).hex(), fillOpacity: 0.55,
           };
         },
         onEachFeature: (feat, layer) => {
