@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import glob
 import os
 import re
 import sys
@@ -19,7 +20,9 @@ import requests
 from bs4 import BeautifulSoup
 from geopy.distance import geodesic
 
+import enrich
 from report import write_html
+from submission import parse_clip
 
 # 370 Jay St, Brooklyn, NY 11201 — NYU Tandon
 CAMPUS_COORDS = (40.6929, -73.9870)
@@ -81,6 +84,7 @@ class Listing:
     description: str
     distance_miles: float | None
     score: int = 0
+    enrichment: dict | None = None
 
 
 def fetch(url: str) -> str:
@@ -561,6 +565,8 @@ def main():
         if not passes_hard_filters(listing):
             continue
         listing.score = score(listing)
+        if listing.lat is not None and listing.lng is not None:
+            listing.enrichment = enrich.enrich_address(listing.lat, listing.lng)
         results.append(listing)
 
     # Family-submitted URLs (submissions.csv intake from a Google Sheet via Apps Script).
@@ -588,6 +594,8 @@ def main():
                 print(f"[skip extra] {url}: could not parse", file=sys.stderr)
                 continue
             listing.score = score(listing)
+            if listing.lat is not None and listing.lng is not None:
+                listing.enrichment = enrich.enrich_address(listing.lat, listing.lng)
         else:
             info = _fetch_external_listing(url, seed=item)
             # Title is now always non-empty (slug fallback ensures it) — skip only if
@@ -610,11 +618,60 @@ def main():
                 description=info.get("description", "") or "",
                 distance_miles=dist,
                 score=0,  # external entries don't get a fit score
+                enrichment=(enrich.enrich_address(lat, lng) if lat is not None and lng is not None else None),
             )
         results.append(listing)
         n_extra_new += 1
     if extra_items:
         print(f"Submitted URLs: {n_extra_new} added, {n_extra_dup} already in scrape results")
+
+    # Web Clipper markdown drops (submissions/*.md). Same idea as the CSV intake
+    # but with parsed-from-markdown metadata + a Nominatim geocode, so the report
+    # can place them on the map even when the source site (StreetEasy, Amber)
+    # would never let us scrape that data.
+    # README.md is intake docs, not a clip. Exclude by name; everything else
+    # in submissions/*.md is treated as a Web Clipper drop.
+    clip_paths = sorted(p for p in glob.glob("submissions/*.md")
+                        if os.path.basename(p) != "README.md")
+    n_clip_new = n_clip_skip = 0
+    for clip_path in clip_paths:
+        info = parse_clip(clip_path)
+        url = info.get("url") or f"file://{clip_path}"
+        if url in seen_urls:
+            continue
+        seen_urls.add(url)
+        if not info.get("title"):
+            print(f"[skip clip] {clip_path}: no title in frontmatter", file=sys.stderr)
+            n_clip_skip += 1
+            continue
+        lat = lng = None
+        neighborhood = ""
+        if info["address"]:
+            geo = enrich.geocode(info["address"])
+            if geo:
+                lat, lng = geo["lat"], geo["lng"]
+                neighborhood = geo.get("neighborhood", "")
+        dist = (geodesic(CAMPUS_COORDS, (lat, lng)).miles
+                if lat is not None and lng is not None else None)
+        listing = Listing(
+            url=url,
+            title=info["title"],
+            price=info.get("price"),
+            bedrooms=info.get("bedrooms"),
+            neighborhood=neighborhood,
+            address=info["address"],
+            lat=lat, lng=lng,
+            posted_date=datetime.now().date().isoformat(),
+            description=info.get("description", "") or "",
+            distance_miles=dist,
+            score=0,
+            enrichment=(enrich.enrich_address(lat, lng) if lat is not None and lng is not None else None),
+        )
+        results.append(listing)
+        n_clip_new += 1
+    if clip_paths:
+        print(f"Web Clipper drops: {n_clip_new} added"
+              + (f", {n_clip_skip} skipped" if n_clip_skip else ""))
 
     results.sort(key=lambda l: l.score, reverse=True)
 
