@@ -2,7 +2,7 @@ import { createState } from "./state.js";
 import { createMap } from "./map.js";
 import { createList } from "./list.js";
 import { createPanel } from "./panel.js";
-import { createOverlays } from "./overlays.js";
+import { createOverlays, createSelectionOverlays } from "./overlays.js";
 
 const state = createState({
   filters: window.KHOJ.filter_defaults,
@@ -11,6 +11,7 @@ const state = createState({
 
 const map = createMap(state, "khoj-map");
 const overlays = createOverlays(state, map);
+createSelectionOverlays(state, map);
 createList(state, "khoj-list", map);
 createPanel(state, "khoj-panel");
 

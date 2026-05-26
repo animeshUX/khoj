@@ -159,3 +159,52 @@ export function createOverlays(state, mapApi) {
 
   return { toggle, show, hide };
 }
+
+export function createSelectionOverlays(state, mapApi) {
+  const leafletMap = mapApi.map;
+  let pathLayer = null;
+  let pathLabel = null;
+  let poiLayer = null;
+
+  function clear() {
+    if (pathLayer) { leafletMap.removeLayer(pathLayer); pathLayer = null; }
+    if (pathLabel) { leafletMap.removeLayer(pathLabel); pathLabel = null; }
+    if (poiLayer)  { leafletMap.removeLayer(poiLayer);  poiLayer  = null; }
+  }
+
+  function show(id) {
+    clear();
+    if (!id) return;
+    const l = window.KHOJ.listings.find(x => x.id === id);
+    if (!l) return;
+    const enr = l.enrichment || {};
+
+    // Commute path: listing -> station -> Tandon
+    const st = enr.commute?.station;
+    if (st) {
+      const pts = [[l.lat, l.lng], [st.lat, st.lng],
+                   [window.KHOJ.campus.lat, window.KHOJ.campus.lng]];
+      pathLayer = L.polyline(pts, { color: "#8C2026", weight: 2, dashArray: "6 4", opacity: 0.7 }).addTo(leafletMap);
+      pathLabel = L.tooltip({ permanent: true, direction: "center", className: "khoj-path-label" })
+        .setLatLng([(l.lat + st.lat) / 2, (l.lng + st.lng) / 2])
+        .setContent(`${enr.commute.walk_min}m walk`)
+        .addTo(leafletMap);
+    }
+
+    // POI markers
+    const pois = [
+      ...(enr.food    || []).map(p => ({ ...p, kind: "food"    })),
+      ...(enr.grocery || []).map(p => ({ ...p, kind: "grocery" })),
+    ];
+    poiLayer = L.layerGroup(
+      pois.filter(p => p.lat != null).map(p =>
+        L.circleMarker([p.lat, p.lng], {
+          radius: 5, color: p.kind === "food" ? "#7A5C1E" : "#3a5a40",
+          fillColor: p.kind === "food" ? "#7A5C1E" : "#3a5a40", fillOpacity: 0.8,
+        }).bindTooltip(`${esc(p.name)} (${p.dist_mi?.toFixed(2)}mi)`)),
+    ).addTo(leafletMap);
+  }
+
+  state.subscribe("selectedId", show);
+  return { clear };
+}
