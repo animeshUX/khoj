@@ -847,3 +847,7 @@ body {
              padding: 4px 8px; border: 1px solid var(--rule); }
 .khoj-brand { font-family: var(--serif-display); font-weight: 600; font-size: var(--type-h4); margin-right: 8px; }
 .khoj-count { margin-left: auto; font-family: var(--mono); font-size: var(--type-small); color: var(--ink-mute); }
+
+/* ----------------------------------------------------------- Empty filter state */
+.khoj-empty { padding: 32px 16px; text-align: center; color: var(--ink-mute); }
+.khoj-empty button { margin-top: 12px; padding: 6px 12px; cursor: pointer; }

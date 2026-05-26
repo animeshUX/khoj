@@ -88,6 +88,9 @@ export function createPanel(state, mountId = "khoj-panel") {
       cur[id] = e.target.value;
       state.set("notes", cur);
     });
+    root.setAttribute("role", "dialog");
+    root.setAttribute("aria-modal", "false");
+    root.querySelector(".khoj-panel-close").focus();
   }
 
   state.subscribe("selectedId", render);
