@@ -155,7 +155,7 @@ export function createMap(state, mountId = 'khoj-map') {
   const el = document.getElementById(mountId);
   if (!el) return { map: null, markerByUrl };
 
-  mapInstance = L.map(mountId, { scrollWheelZoom: false }).setView(CAMPUS, 13);
+  mapInstance = L.map(mountId, { scrollWheelZoom: true, wheelPxPerZoomLevel: 80 }).setView(CAMPUS, 13);
   applyTile(getTileChoice());
 
   drawDistanceRings();
