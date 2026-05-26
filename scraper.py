@@ -38,6 +38,7 @@ SEARCH_URL = (
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 REQUEST_DELAY_SEC = 1.5
 HTTP_TIMEOUT = 25
+SUBMISSIONS_TIMEOUT = 60   # Apps Script doGet has 30s cap; allow headroom + retry
 
 MIN_PRICE = 800
 MAX_PRICE = 1500
@@ -85,6 +86,7 @@ class Listing:
     distance_miles: float | None
     score: int = 0
     enrichment: dict | None = None
+    source: str = "craigslist"
 
 
 def fetch(url: str) -> str:
@@ -456,7 +458,7 @@ def _read_submissions_csv(path: str) -> list[dict]:
     paste the page title from the browser tab instead of the link."""
     if path.startswith(("http://", "https://")):
         try:
-            resp = session.get(path, timeout=HTTP_TIMEOUT, allow_redirects=True)
+            resp = session.get(path, timeout=SUBMISSIONS_TIMEOUT, allow_redirects=True)
             resp.raise_for_status()
             lines = resp.text.splitlines()
         except (requests.RequestException, RuntimeError) as e:
@@ -593,6 +595,7 @@ def main():
             if listing is None:
                 print(f"[skip extra] {url}: could not parse", file=sys.stderr)
                 continue
+            listing.source = "submission"
             listing.score = score(listing)
             if listing.lat is not None and listing.lng is not None:
                 listing.enrichment = enrich.enrich_address(listing.lat, listing.lng)
@@ -619,6 +622,7 @@ def main():
                 distance_miles=dist,
                 score=0,  # external entries don't get a fit score
                 enrichment=(enrich.enrich_address(lat, lng) if lat is not None and lng is not None else None),
+                source="submission",
             )
         results.append(listing)
         n_extra_new += 1
@@ -666,6 +670,7 @@ def main():
             distance_miles=dist,
             score=0,
             enrichment=(enrich.enrich_address(lat, lng) if lat is not None and lng is not None else None),
+            source="submission",
         )
         results.append(listing)
         n_clip_new += 1

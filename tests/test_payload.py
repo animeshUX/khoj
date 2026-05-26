@@ -22,10 +22,14 @@ def test_score_attached_when_enriched(sample_listing):
     assert 0.0 <= p["listings"][0]["score"] <= 1.0
 
 
-def test_listing_without_coords_is_filtered_out():
+def test_listing_without_coords_included_in_payload():
+    # Coord-less listings (e.g. un-geocodable submissions) must appear in the list
+    # rail; map.js guards the pin creation with `if (l.lat == null) return`.
     bad = {"id": "x", "lat": None, "lng": None, "title": "no coords"}
     p = build_payload([bad])
-    assert p["listings"] == []
+    assert len(p["listings"]) == 1
+    assert p["listings"][0]["lat"] is None
+    assert p["listings"][0]["lng"] is None
 
 
 def test_filter_defaults_match_spec():

@@ -25,8 +25,6 @@ def _listing_dict(raw: object) -> dict | None:
         raw = dataclasses.asdict(raw)
     if not isinstance(raw, dict):
         return None
-    if raw.get("lat") is None or raw.get("lng") is None:
-        return None
     out = {
         "id":           raw.get("id") or raw.get("url"),
         "source":       raw.get("source", "craigslist"),
@@ -34,8 +32,8 @@ def _listing_dict(raw: object) -> dict | None:
         "title":        raw.get("title", ""),
         "price":        raw.get("price"),
         "beds":         raw.get("beds") if "beds" in raw else raw.get("bedrooms"),
-        "lat":          raw["lat"],
-        "lng":          raw["lng"],
+        "lat":          raw.get("lat"),
+        "lng":          raw.get("lng"),
         "address":      raw.get("address", ""),
         "neighborhood": raw.get("neighborhood", ""),
         "posted_at":    raw.get("posted_at") or raw.get("posted_date"),
