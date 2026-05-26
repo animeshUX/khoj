@@ -28,6 +28,14 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: Audit deps for known CVEs
+        # Fail the run if a pinned dep has a known vulnerability. Dependabot
+        # also opens PRs for these, but pip-audit catches anything that landed
+        # between the weekly Dependabot scan and now.
+        run: |
+          pip install pip-audit
+          pip-audit --strict --requirement requirements.txt
+
       - name: Sanity-check Craigslist access
         run: python scraper.py --sanity-check
 

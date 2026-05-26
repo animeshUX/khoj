@@ -1,0 +1,31 @@
+# Dependabot config — opens PRs when pinned deps drift behind upstream or
+# pick up a CVE. Two ecosystems we actually have:
+#
+#   - pip:             requirements.txt (six pinned libs)
+#   - github-actions:  uses: in .github/workflows/
+#
+# Weekly cadence is enough — the dep list is tiny and we don't need
+# Monday-morning churn.
+
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci"
