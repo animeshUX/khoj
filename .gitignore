@@ -9,3 +9,11 @@ __pycache__/
 /session_handoff.md
 /SESSION_HANDOFF.md
 /.claude/
+# Web Clipper drops — personal listings, gitignored by default.
+# The submissions/ directory is tracked (with its README + .gitkeep) so the
+# enrichment pipeline knows where to look; only the .md clips themselves stay
+# local unless someone explicitly chooses to track one. ** is recursive — a
+# subfolder like submissions/active/ wouldn't be exempt by accident.
+/submissions/**/*.md
+# Exception: the directory's own README is intake docs, not a clip.
+!/submissions/README.md

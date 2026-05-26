@@ -27,16 +27,9 @@ You can **★ Star** ones you like, **Hide** ones that don't fit, and **✎ Note
 
 ## Sharing a listing you found yourself
 
-There are two ways to get a listing into the report without scraping it:
+**Aunt or uncle submits via a Google Sheet.** They fill in a row in a shared Sheet (template provided in `submissions_template.csv`), and an Apps Script web app exposes it as CSV. The scraper reads from that endpoint via the `KHOJ_SUBMISSIONS_URL` repo secret. Rows whose URL cell isn't actually a link (or that are pasted as rich-text titles) are resolved or skipped by the Apps Script — see `apps_script.gs`.
 
-**You found a Craigslist link.** Open `manual_urls.txt`, paste the link on a new line, save and push. The next run picks it up and treats it like any other listing.
-
-```
-# manual_urls.txt
-https://newyork.craigslist.org/brk/apa/d/example/1234567890.html | Aunt Priya — nice kitchen
-```
-
-**Aunt or uncle submits via a Google Sheet.** They fill in a row in a shared Sheet (template provided in `submissions_template.csv`), you export it as `submissions.csv` and push. The scraper reads that file too. Rows whose URL cell isn't actually a link are skipped with a warning — common when someone pastes the page title by accident.
+A second intake path via Obsidian Web Clipper is being built — see `submissions/README.md` and `PLAN.md`.
 
 In either case, you can trigger an immediate refresh instead of waiting for tomorrow's run: go to the **Actions** tab in GitHub, click **"Scrape Craigslist"**, then **"Run workflow"**. About 5 minutes later, the live page updates.
 
@@ -87,7 +80,6 @@ If you want different weights, edit `KEYWORD_RULES` and the price/distance const
 - **Craigslist blocks the RSS endpoint** from most networks. We parse the static HTML search page instead — works fine from GitHub's runners.
 - **There's a 1.5-second pause** between requests so we don't hammer their servers. ~100 listings takes about 5 minutes.
 - **A listing without coordinates** gets dropped — we can't measure distance, can't draw it on the map.
-- **Manual URLs in `manual_urls.txt`** are Craigslist-only right now. Other sites would need their own parsers; for one-offs from StreetEasy etc., open the link directly.
 
 ## Other places worth checking by hand
 
