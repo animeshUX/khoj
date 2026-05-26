@@ -73,7 +73,10 @@ def parse_clip(path: str | Path) -> dict:
     fm, body = _parse_frontmatter(text)
 
     title = fm.get("title", "")
-    url = fm.get("source", "")
+    # Only accept http(s) URLs — a clip with `source: javascript:…` would otherwise
+    # flow through to an <a href> in the rendered Pages site (stored XSS).
+    raw_url = fm.get("source", "")
+    url = raw_url if raw_url.startswith(("http://", "https://")) else ""
     description = fm.get("description", "")
     haystack = "\n".join([title, description, body[:8000]])
 

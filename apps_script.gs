@@ -19,8 +19,8 @@
  * Deploy:
  *   1. Extensions → Apps Script from the sheet.
  *   2. Replace Code.gs with this file.
- *   3. Project Settings → Script Properties → add KHOJ_KEY = <secret>
- *      (skip if you want the endpoint unauthenticated).
+ *   3. Project Settings → Script Properties → add KHOJ_KEY = <secret>.
+ *      Required — doGet fails closed without it.
  *   4. Deploy → Manage deployments → Edit existing → New version → Deploy.
  *      The URL is stable, so the GitHub secret KHOJ_SUBMISSIONS_URL doesn't
  *      need to change.
@@ -32,8 +32,10 @@ const SHEET_NAME = 'Sheet1';  // change if your tab is named differently
 const OG_CACHE_TTL_SECONDS = 21600;  // 6h — CacheService max is 21600
 
 function doGet(e) {
+  // Fail-closed: if KHOJ_KEY was never set (or got wiped during a redeploy),
+  // the endpoint stays locked instead of silently serving the whole sheet.
   const requiredKey = PropertiesService.getScriptProperties().getProperty('KHOJ_KEY');
-  if (requiredKey && e.parameter.key !== requiredKey) {
+  if (!requiredKey || e.parameter.key !== requiredKey) {
     return textResponse('forbidden', ContentService.MimeType.TEXT);
   }
 

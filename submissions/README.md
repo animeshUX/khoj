@@ -34,11 +34,12 @@ regardless — the moat is the per-address briefing, not the parser.
 
 ## What gets committed
 
-By default, **nothing in this directory is tracked** except this README and
-`.gitkeep` (see the root `.gitignore`). The .md clips are personal data
-(which apartments your family is considering) and stay local. If you want
-to publish a particular clip — say, the place you ultimately picked —
-explicitly `git add -f submissions/that-one.md`.
+**Everything you drop here is tracked and pushed to a public repo** — the GHA
+runner needs the files at scrape time. Privacy-review each clip before
+committing: strip embedded API keys (StreetEasy embeds a Google Maps key in
+map-tile image URLs), broker phone numbers you don't want republished, and
+anything else you wouldn't want on GitHub Pages. The scraper renders
+`title` / `address` / `description` into the published HTML.
 
 ## Alternative intake paths
 

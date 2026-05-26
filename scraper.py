@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import csv
 import glob
+import ipaddress
 import os
 import re
 import sys
@@ -263,6 +264,18 @@ CSV_COLUMNS = ["score", "price", "bedrooms", "neighborhood", "distance_miles",
                "posted_date", "title", "url", "description"]
 
 
+def _csv_safe(v):
+    """Prefix `'` to cells that Excel/Sheets would interpret as a formula.
+
+    Listing titles and descriptions are attacker-influenced (anyone can post a
+    Craigslist listing). Without this guard, a description starting with `=` or
+    `@` becomes a live formula when the CSV is opened in a spreadsheet.
+    """
+    if isinstance(v, str) and v[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + v
+    return v
+
+
 def write_csv(path: str, listings: list[Listing]) -> None:
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=CSV_COLUMNS)
@@ -271,7 +284,7 @@ def write_csv(path: str, listings: list[Listing]) -> None:
             row = asdict(l)
             row["distance_miles"] = f"{l.distance_miles:.2f}" if l.distance_miles is not None else ""
             row["description"] = (l.description or "")[:200]
-            w.writerow({k: row.get(k, "") for k in CSV_COLUMNS})
+            w.writerow({k: _csv_safe(row.get(k, "")) for k in CSV_COLUMNS})
 
 
 def diagnose() -> None:
@@ -377,6 +390,22 @@ def _guess_bedrooms_from_text(title: str, description: str):
     return None
 
 
+def _is_private_host(url: str) -> bool:
+    """True if the URL's host is a literal RFC1918 / loopback / link-local IP.
+
+    Cheap SSRF guard for submitter-controlled URLs. Hostnames are accepted as-is —
+    DNS rebinding is out of scope; runner IP exposure is the practical risk.
+    """
+    host = (urlparse(url).hostname or "").strip("[]")
+    if not host:
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+
+
 def _fetch_external_listing(url: str, seed: dict | None = None) -> dict:
     """Fetch a non-Craigslist URL and pull as much listing info as we can.
 
@@ -394,12 +423,20 @@ def _fetch_external_listing(url: str, seed: dict | None = None) -> dict:
     address = ""
     neighborhood = ""
 
-    try:
-        time.sleep(REQUEST_DELAY_SEC)
-        resp = session.get(url, timeout=HTTP_TIMEOUT, allow_redirects=True)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
+    if _is_private_host(url):
+        print(f"[external skip] {url}: private/loopback host", file=sys.stderr)
+        soup = None
+    else:
+        soup = None
+        try:
+            time.sleep(REQUEST_DELAY_SEC)
+            resp = session.get(url, timeout=HTTP_TIMEOUT, allow_redirects=True)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "html.parser")
+        except (requests.RequestException, RuntimeError) as e:
+            print(f"[external fail] {url}: {e}", file=sys.stderr)
 
+    if soup is not None:
         def meta(name: str, attr: str = "property") -> str:
             el = soup.find("meta", attrs={attr: name})
             return (el.get("content") or "").strip() if el and el.get("content") else ""
@@ -419,8 +456,6 @@ def _fetch_external_listing(url: str, seed: dict | None = None) -> dict:
                 if street or locality:
                     address = street
                     neighborhood = locality.title() if locality else neighborhood
-    except (requests.RequestException, RuntimeError) as e:
-        print(f"[external fail] {url}: {e}", file=sys.stderr)
 
     # Layered fallbacks: live fetch → Apps Script seed → URL slug.
     if not title:
@@ -462,7 +497,10 @@ def _read_submissions_csv(path: str) -> list[dict]:
             resp.raise_for_status()
             lines = resp.text.splitlines()
         except (requests.RequestException, RuntimeError) as e:
-            print(f"[warn] could not fetch submissions URL: {e}", file=sys.stderr)
+            # Don't print `e`: requests exceptions embed the full URL, which here
+            # contains the Apps Script `?key=…`. GitHub Actions masks the secret in
+            # logs, but we shouldn't rely on the mask catching every URL mutation.
+            print(f"[warn] could not fetch submissions: {type(e).__name__}", file=sys.stderr)
             return []
         reader = csv.DictReader(lines)
     elif os.path.exists(path):
