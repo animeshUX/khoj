@@ -3,12 +3,14 @@ import { createMap } from "./map.js";
 import { createList } from "./list.js";
 import { createPanel } from "./panel.js";
 import { createOverlays, createSelectionOverlays } from "./overlays.js";
+import { createFilters } from "./filters.js";
 
 const state = createState({
   filters: window.KHOJ.filter_defaults,
   selectedId: null,
 });
 
+createFilters(state, "khoj-topbar");
 const map = createMap(state, "khoj-map");
 const overlays = createOverlays(state, map);
 createSelectionOverlays(state, map);

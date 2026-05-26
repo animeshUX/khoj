@@ -1,3 +1,5 @@
+import { applyFilters } from "./filters.js";
+
 // Tile providers — all free, no API key.
 const TILE_PROVIDERS = {
   streets: {
@@ -164,10 +166,25 @@ export function createMap(state, mountId = 'khoj-map') {
   coords.push(CAMPUS);
   if (coords.length > 1) mapInstance.fitBounds(coords, { padding: [40, 40] });
 
+  function syncFilters() {
+    const visibleIds = new Set(applyFilters(window.KHOJ.listings, state).map(l => l.id));
+    for (const [id, marker] of markerByUrl.entries()) {
+      const el = marker.getElement();
+      if (!el) continue;
+      el.classList.toggle("khoj-pin--filtered-out", !visibleIds.has(id));
+    }
+  }
+
   // Sync star/hide flags onto existing pins (no full redraw needed)
   state.subscribe('starred', syncFlags);
   state.subscribe('hidden',  syncFlags);
   syncFlags();
+
+  // Fade pins that don't pass current filters
+  state.subscribe('filters', syncFilters);
+  state.subscribe('starred', syncFilters);
+  state.subscribe('hidden',  syncFilters);
+  syncFilters();
 
   return { map: mapInstance, markerByUrl, mountLayersControl };
 }
