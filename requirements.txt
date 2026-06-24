@@ -3,4 +3,4 @@ beautifulsoup4==4.15.0
 lxml==6.1.0
 geopy==2.4.1
 shapely==2.1.2
-pytest==9.0.3
+pytest==9.1.1
